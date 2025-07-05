@@ -1,0 +1,51 @@
+version: "3.8"
+
+networks:
+  adogent:
+    name: adogent
+    external: false
+
+services:
+  fastapi:
+    build: 
+      context: ..
+      dockerfile: docker/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8008:8000"
+    working_dir: /usr/app
+    command: >
+      sh -c "
+              cd /usr/app &&
+              alembic upgrade head &&
+              uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
+              "
+    volumes:
+      - ../:/usr/app/
+    environment:
+      - TIME_ZONE=UTC
+      - PYTHONPATH=/usr/app
+    env_file:
+      - ../app/.env
+    depends_on:
+      - db
+    networks:
+      - adogent
+
+  db:
+    image: postgres:15
+    container_name: adogent_db
+    restart: unless-stopped
+    ports:
+      - "7660:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres_password
+      POSTGRES_DB: adogent
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - adogent
+
+volumes:
+  postgres_data:
