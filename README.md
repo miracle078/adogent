@@ -512,7 +512,7 @@ This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md
 
 <div align="center">
 
-**Built with ❤️ by the ADOGENT Team**
+**Built with ❤️ by The Golden Age**
 
 [🔗 Live Demo](https://lovable.dev/projects/2bec7813-1fda-4fbf-9305-50864ec62a2e) • 
 [📖 Documentation](docs/) • 
