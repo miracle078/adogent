@@ -1,15 +1,15 @@
 <p align="center">
   <a href="" rel="noopener">
- <img src="https://i.imgur.com/AZ2iWek.png" alt="The Golden Age Logo"></a>
+ <img src="https://i.imgur.com/AZ2iWek.png" alt="Adogent Logo"></a>
 </p>
-<h3 align="center">The Golden Age - Agent-Powered E-Commerce Platform</h3>
+<h3 align="center"> Adogent - Agent-Powered E-Commerce Platform</h3>
 
 <div align="center">
 
-[![Hackathon](https://img.shields.io/badge/hackathon-Agent--Powered--E--Commerce-orange.svg)](https://github.com/miracle078/thegoldenage)
+[![Hackathon](https://img.shields.io/badge/hackathon-Agent--Powered--E--Commerce-orange.svg)](https://github.com/miracle078/adogent)
 [![Status](https://img.shields.io/badge/status-active-success.svg)]()
-[![GitHub Issues](https://img.shields.io/github/issues/miracle078/thegoldenage.svg)](https://github.com/miracle078/thegoldenage/issues)
-[![GitHub Pull Requests](https://img.shields.io/github/issues-pr/miracle078/thegoldenage.svg)](https://github.com/miracle078/thegoldenage/pulls)
+[![GitHub Issues](https://img.shields.io/github/issues/miracle078/adogent.svg)](https://github.com/miracle078/adogent/issues)
+[![GitHub Pull Requests](https://img.shields.io/github/issues-pr/miracle078/adogent.svg)](https://github.com/miracle078/adogent/pulls)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE.md)
 [![Python](https://img.shields.io/badge/python-3.11+-blue.svg)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-009688.svg?logo=fastapi)](https://fastapi.tiangolo.com)
@@ -44,7 +44,7 @@
 
 ## 🚀 About the Project <a name = "about"></a>
 
-**The Golden Age** is an AI-powered e-commerce platform that revolutionizes how users shop online. Built for the Agent-Powered E-Commerce hackathon, our platform uses intelligent AI agents to provide personalized shopping experiences through natural language conversations.
+**Adogent** is an AI-powered e-commerce platform that revolutionizes how users shop online. Built for the Agent-Powered E-Commerce hackathon, our platform uses intelligent AI agents to provide personalized shopping experiences through natural language conversations.
 
 ### 🎯 Key Features
 
@@ -88,7 +88,7 @@ Modern e-commerce platforms suffer from fragmented user experiences and lack of 
 
 ## 💡 Solution & Features <a name = "idea"></a>
 
-**The Golden Age** addresses e-commerce challenges through an intelligent, agent-powered platform that creates personalized shopping experiences through natural language conversations.
+**Adogent** addresses e-commerce challenges through an intelligent, agent-powered platform that creates personalized shopping experiences through natural language conversations.
 
 ### 🔧 Core Features
 
@@ -205,7 +205,7 @@ Modern e-commerce platforms suffer from fragmented user experiences and lack of 
 
 ## 🏁 Getting Started <a name = "getting_started"></a>
 
-Get **The Golden Age** up and running on your local machine for development and testing.
+Get **Adogent** up and running on your local machine for development and testing.
 
 ### Prerequisites
 
@@ -220,8 +220,8 @@ Before you begin, ensure you have the following installed:
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/miracle078/thegoldenage.git
-   cd thegoldenage
+   git clone https://github.com/miracle078/adogent.git
+   cd adogent
    ```
 
 2. **Set up environment variables**
@@ -275,7 +275,7 @@ Before you begin, ensure you have the following installed:
 
 ### API Endpoints
 
-**The Golden Age** provides RESTful APIs for all major e-commerce functionalities:
+**Adogent** provides RESTful APIs for all major e-commerce functionalities:
 
 #### Authentication
 ```bash
@@ -351,7 +351,7 @@ curl -X POST "http://localhost:8000/api/products/search" \
 
 ## 🤖 AI Agents <a name = "agents"></a>
 
-**The Golden Age** features specialized AI agents powered by Groq's lightning-fast LLM API:
+**Adogent** features specialized AI agents powered by Groq's lightning-fast LLM API:
 
 ### Agent Architecture
 
@@ -425,7 +425,7 @@ All agents leverage Groq's high-performance LLM API:
 
 ## 📚 API Documentation <a name = "api_docs"></a>
 
-**The Golden Age** provides comprehensive API documentation through FastAPI's built-in OpenAPI integration.
+**Adogent** provides comprehensive API documentation through FastAPI's built-in OpenAPI integration.
 
 ### Interactive Documentation
 
@@ -530,7 +530,7 @@ The API uses standard HTTP status codes and provides detailed error messages:
 ## 📂 Project Structure <a name = "project_structure"></a>
 
 ```
-thegoldenage/
+adogent/
 ├── README.md                   # Project documentation
 ├── CONTRIBUTING.md             # Contribution guidelines
 ├── .github/                    # GitHub workflows and templates
@@ -636,10 +636,10 @@ thegoldenage/
 1. **Build and Push Docker Image**
    ```bash
    # Build the image
-   docker build -t thegoldenage-backend .
+   docker build -t adogent-backend .
    
    # Tag for AWS ECR
-   docker tag thegoldenage-backend:latest YOUR_ECR_REPO:latest
+   docker tag adogent-backend:latest YOUR_ECR_REPO:latest
    
    # Push to ECR
    docker push YOUR_ECR_REPO:latest
@@ -710,7 +710,7 @@ Maintain test coverage above 85% for:
 
 ## 🤝 Contributing <a name = "contributing"></a>
 
-We welcome contributions to **The Golden Age**! Please read our [Contributing Guide](CONTRIBUTING.md) for details on:
+We welcome contributions to **Adogent**! Please read our [Contributing Guide](CONTRIBUTING.md) for details on:
 
 - Development setup and workflow
 - Code standards and formatting
@@ -771,10 +771,10 @@ We welcome contributions to **The Golden Age**! Please read our [Contributing Gu
 
 - **[@miracle078](https://github.com/miracle078)** - Project Lead 
 - **[@bolexs](https://github.com/bolexs)** - Backend Architecture
-- **Team Golden Age** - Agent-Powered E-Commerce Hackathon Team
+- **Team Adogent** - Agent-Powered E-Commerce Hackathon Team
 
 ### Contributors
-See the list of [contributors](https://github.com/miracle078/thegoldenage/contributors) who participated in this project.
+See the list of [contributors](https://github.com/miracle078/adogent/contributors) who participated in this project.
 
 ### Team Roles
 - **AI/ML Engineering**: Agent development and Groq integration
@@ -801,6 +801,6 @@ See the list of [contributors](https://github.com/miracle078/thegoldenage/contri
 
 **[⬆ Back to Top](#top)**
 
-Made with ❤️ by Team Golden Age
+Made with ❤️ by Team Adogent
 
 </div>

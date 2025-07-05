@@ -18,8 +18,8 @@ Before contributing, ensure you have:
 1. Fork the repository on GitHub
 2. Clone your fork locally:
    ```bash
-   git clone https://github.com/YOUR_USERNAME/thegoldenage.git
-   cd thegoldenage
+   git clone https://github.com/YOUR_USERNAME/adogent.git
+   cd adogent
    ```
 
 ## 🌿 Branch Management
@@ -243,7 +243,7 @@ When requesting features:
 ### Reporting Security Issues
 
 - **Do not** open public issues for security vulnerabilities
-- **Email security concerns** to [security@thegoldenage.com](mailto:security@thegoldenage.com)
+- **Email security concerns** to [security@adogent.com](mailto:security@adogent.com)
 - **Include detailed information** about the vulnerability
 - **Allow time** for the issue to be addressed before public disclosure
 
@@ -289,7 +289,7 @@ Report unacceptable behavior to the project maintainers. All complaints will be 
 
 - **GitHub Issues**: For bugs and feature requests
 - **GitHub Discussions**: For general questions and ideas
-- **Email**: [team@thegoldenage.com](mailto:team@thegoldenage.com)
+- **Email**: [team@adogent.com](mailto:team@adogent.com)
 
 ### Before Asking for Help
 
@@ -304,7 +304,7 @@ Report unacceptable behavior to the project maintainers. All complaints will be 
 
 **Thank you for your contribution! 🎈**
 
-Every contribution, no matter how small, helps make The Golden Age better.
+Every contribution, no matter how small, helps make adogent better.
 
 **[⬆ Back to Top](#top)**
 
