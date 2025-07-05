@@ -4,6 +4,11 @@
   </a>
 </p>
 
+<!-- Large hackathon banner -->
+<div align="center" style="margin: 20px 0;">
+  <img src="https://img.shields.io/badge/🚀%20HACKATHON%20PROJECT-Agent--Powered--E--Commerce-ff6b35.svg?style=for-the-badge&logoColor=white" alt="Hackathon Project" width="400">
+</div>
+
 <h1 align="center">ADOGENT - AI-Powered E-Commerce Platform</h1>
 
 <div align="center">
