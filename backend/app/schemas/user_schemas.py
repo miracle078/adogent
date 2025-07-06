@@ -77,6 +77,7 @@ class UserCreateRequest(UserBase):
     preferred_currency: str = Field(default="USD", max_length=5, description="Preferred currency code")
     allow_marketing_emails: bool = Field(default=False, description="Allow marketing emails")
     allow_personalization: bool = Field(default=True, description="Allow AI personalization")
+    allow_voice_data_storage: bool = Field(default=True, description="Allow voice data storage")
     
     @field_validator('password')
     @classmethod
