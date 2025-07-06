@@ -10,7 +10,7 @@ from contextlib import asynccontextmanager
 import uuid
 
 from app.config.config import settings
-from app.api import auth, users, products, category
+from app.api import auth, users, products, category, ai_routes
 from app.logging.log import logger, log_api_request, log_user_action
 
 
@@ -185,6 +185,7 @@ app.include_router(
 app.include_router(users.router, prefix=f"{settings.API_V1_PREFIX}")
 app.include_router(products.router, prefix=f"{settings.API_V1_PREFIX}")
 app.include_router(category.router, prefix=f"{settings.API_V1_PREFIX}")
+app.include_router(ai_routes.router, prefix=f"{settings.API_V1_PREFIX}")
 
 
 # Root endpoint
