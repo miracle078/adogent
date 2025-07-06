@@ -57,10 +57,10 @@ async def chat_with_agent(
         
         # Set user ID if authenticated - Use user_id from TokenData
         if current_user:
-            request.user_id = current_user.user_id  # Fix: Use user_id instead of id
+            request.user_id = current_user.user_id
             log_user_action(
                 action="ai_chat_request",
-                user_id=str(current_user.user_id),  # Fix: Use user_id instead of id
+                user_id=str(current_user.user_id),
                 details={"interaction_type": request.interaction_type}
             )
         
