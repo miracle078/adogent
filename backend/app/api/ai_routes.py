@@ -227,7 +227,10 @@ async def upload_and_analyze_image(
             )
         
         # Check file size
-        if file.size and file.size > settings.MAX_FILE_SIZE:
+        file.file.seek(0, 2)  # Move pointer to the end of the file
+        file_size = file.file.tell()  # Get the size of the file in bytes
+        file.file.seek(0)  # Reset pointer to the beginning of the file
+        if file_size > settings.MAX_FILE_SIZE:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"File size must be less than {settings.MAX_FILE_SIZE / 1024 / 1024:.1f}MB"
