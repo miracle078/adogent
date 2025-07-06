@@ -4,69 +4,26 @@ Handles user registration, login, logout, token refresh, and OAuth.
 """
 
 from typing import Dict, Any
-from uuid import UUID
-
 from fastapi import APIRouter, Depends, HTTPException, status, Request
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.database import get_db
-from app.services.auth_service import AuthService, TokenData
+from app.services.auth_service import AuthService
 from app.schemas.auth_schemas import TokenResponse
 from app.schemas.user_schemas import (
     UserCreateRequest,
     UserLoginRequest, 
     RefreshTokenRequest,
-    UserResponse
+    AuthTokenResponse
 )
 from app.utils.exceptions import AuthenticationError, ConflictError, ValidationError
 from app.logging.log import logger, log_api_request
-from app.models.user import User
 
 # Initialize router
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
-# Security scheme for JWT tokens
-security = HTTPBearer()
 
-
-async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: AsyncSession = Depends(get_db),
-) -> TokenData:
-    """
-    Dependency to get current authenticated user from JWT token.
-    
-    Args:
-        credentials: JWT token from Authorization header
-        db: Database session
-        
-    Returns:
-        Token data with user information
-        
-    Raises:
-        HTTPException: If token is invalid or user not found
-    """
-    try:
-        auth_service = AuthService(db)
-        token_data = await auth_service.verify_token(credentials.credentials)
-        return token_data
-    except AuthenticationError as e:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=str(e),
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    except Exception as e:
-        logger.error(f"Authentication error: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Could not validate credentials",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-
-@router.post("/register", response_model=Dict[str, Any], status_code=status.HTTP_201_CREATED)
+@router.post("/register", response_model=AuthTokenResponse, status_code=status.HTTP_201_CREATED)
 async def register_user(
     request: Request,
     user_data: UserCreateRequest,
@@ -95,15 +52,17 @@ async def register_user(
             method="POST",
             endpoint="/auth/register",
             status_code=201,
-            response_time=0.0,  # Will be set by middleware
+            response_time=0.0,
             user_id=str(user_response.id),
         )
         
-        return {
-            "message": "User registered successfully",
-            "user": user_response.dict(),
-            "tokens": token_response.dict(),
-        }
+        return AuthTokenResponse(
+            access_token=token_response.access_token,
+            refresh_token=token_response.refresh_token,
+            token_type=token_response.token_type,
+            expires_in=token_response.expires_in,
+            user=user_response
+        )
         
     except ConflictError as e:
         raise HTTPException(
@@ -123,7 +82,7 @@ async def register_user(
         )
 
 
-@router.post("/login", response_model=Dict[str, Any])
+@router.post("/login", response_model=AuthTokenResponse)
 async def login_user(
     request: Request,
     login_data: UserLoginRequest,
@@ -152,15 +111,17 @@ async def login_user(
             method="POST",
             endpoint="/auth/login",
             status_code=200,
-            response_time=0.0,  # Will be set by middleware
+            response_time=0.0,
             user_id=str(user_response.id),
         )
         
-        return {
-            "message": "Login successful",
-            "user": user_response.dict(),
-            "tokens": token_response.dict(),
-        }
+        return AuthTokenResponse(
+            access_token=token_response.access_token,
+            refresh_token=token_response.refresh_token,
+            token_type=token_response.token_type,
+            expires_in=token_response.expires_in,
+            user=user_response
+        )
         
     except AuthenticationError as e:
         raise HTTPException(
@@ -186,28 +147,28 @@ async def refresh_token(
     
     Args:
         request: FastAPI request object
-        refresh_data: Refresh token request
+        refresh_data: Refresh token request data
         db: Database session
         
     Returns:
         New token response
         
     Raises:
-        HTTPException: If refresh fails
+        HTTPException: If token refresh fails
     """
     try:
         auth_service = AuthService(db)
-        token_response = await auth_service.refresh_token(refresh_data)
+        new_token_response = await auth_service.refresh_token(refresh_data)
         
         # Log API request
         log_api_request(
             method="POST",
             endpoint="/auth/refresh",
             status_code=200,
-            response_time=0.0,  # Will be set by middleware
+            response_time=0.0,
         )
         
-        return token_response
+        return new_token_response
         
     except AuthenticationError as e:
         raise HTTPException(
@@ -222,63 +183,58 @@ async def refresh_token(
         )
 
 
-@router.get("/me", response_model=UserResponse)
-async def get_current_user_profile(
+@router.post("/logout", response_model=Dict[str, str])
+async def logout_user(
     request: Request,
-    current_user: TokenData = Depends(get_current_user),
+    refresh_data: RefreshTokenRequest,
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Get current user profile information.
+    Logout user by revoking refresh token.
     
     Args:
         request: FastAPI request object
-        current_user: Current authenticated user
+        refresh_data: Refresh token to revoke
         db: Database session
         
     Returns:
-        User profile information
+        Success message
         
     Raises:
-        HTTPException: If profile retrieval fails
+        HTTPException: If logout fails
     """
     try:
-        # Get full user information from database
-        user = await db.get(User, current_user.user_id)
-        if not user:
+        auth_service = AuthService(db)
+        
+        # Extract user ID from refresh token first
+        token_data = await auth_service.verify_token(refresh_data.refresh_token)
+        success = await auth_service.logout_user(token_data.user_id, refresh_data.refresh_token)
+        
+        if not success:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="User not found",
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Logout failed"
             )
         
         # Log API request
         log_api_request(
-            method="GET",
-            endpoint="/auth/me",
+            method="POST",
+            endpoint="/auth/logout",
             status_code=200,
-            response_time=0.0,  # Will be set by middleware
-            user_id=str(current_user.user_id),
+            response_time=0.0,
+            user_id=str(token_data.user_id),
         )
         
-        return UserResponse(
-            id=user.id,
-            email=user.email,
-            username=user.username,
-            first_name=user.first_name,
-            last_name=user.last_name,
-            role=user.role,
-            status=user.status,
-            preferred_language=user.preferred_language,
-            preferred_currency=user.preferred_currency,
-            created_at=user.created_at,
-            last_login=user.last_login,
-            updated_at=user.updated_at,
-            ai_interaction_style=user.ai_interaction_style
-        )
+        return {"message": "Successfully logged out"}
         
+    except AuthenticationError as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=str(e),
+        )
     except Exception as e:
-        logger.error(f"Get profile error: {e}")
+        logger.error(f"Logout error: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve profile",
+            detail="Logout failed",
         )

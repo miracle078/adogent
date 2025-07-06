@@ -32,7 +32,7 @@ class Settings:
     # Password Security
     PASSWORD_MIN_LENGTH: int = config("PASSWORD_MIN_LENGTH", default=8, cast=int)
     BCRYPT_ROUNDS: int = config("BCRYPT_ROUNDS", default=12, cast=int)
-    
+    ADMIN_BOOTSTRAP_API_KEY: str = config("ADMIN_BOOTSTRAP_API_KEY")    
     # Groq API Configuration
     GROQ_API_KEY: str = config("GROQ_API_KEY")
     GROQ_BASE_URL: str = config("GROQ_BASE_URL", default="https://api.groq.com/openai/v1")

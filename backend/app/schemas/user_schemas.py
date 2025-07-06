@@ -4,7 +4,7 @@ Defines Pydantic models for user-related API operations.
 """
 
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 from uuid import UUID
 from pydantic import BaseModel, EmailStr, Field, field_validator
 from enum import Enum
@@ -93,6 +93,14 @@ class UserCreateRequest(UserBase):
             raise ValueError('Password must contain at least one digit')
         return v
 
+    @field_validator('confirm_password')
+    @classmethod
+    def validate_passwords_match(cls, v, values):
+        """Validate that passwords match."""
+        if 'password' in values.data and v != values.data['password']:
+            raise ValueError('Passwords do not match')
+        return v
+
 
 class UserLoginRequest(BaseModel):
     """Schema for user login request."""
@@ -100,6 +108,12 @@ class UserLoginRequest(BaseModel):
     email: EmailStr = Field(..., description="User's email address")
     password: str = Field(..., description="User's password")
     remember_me: bool = Field(default=False, description="Remember user for extended session")
+
+
+class PromoteToAdminRequest(BaseModel):
+    """Schema for promoting user to admin."""
+    
+    email: EmailStr = Field(..., description="Email of user to promote to admin")
 
 
 class UserUpdateRequest(BaseModel):
@@ -144,10 +158,24 @@ class PasswordChangeRequest(BaseModel):
             raise ValueError('Password must contain at least one digit')
         return v
 
+    @field_validator('confirm_new_password')
+    @classmethod
+    def validate_passwords_match(cls, v, values):
+        """Validate that new passwords match."""
+        if 'new_password' in values.data and v != values.data['new_password']:
+            raise ValueError('New passwords do not match')
+        return v
+
+
+class RefreshTokenRequest(BaseModel):
+    """Schema for refresh token request."""
+    
+    refresh_token: str = Field(..., description="Refresh token")
+
 
 # Response schemas
 class UserResponse(BaseModel):
-    """Schema for user response."""
+    """Schema for user response with robust field handling."""
     
     id: UUID = Field(..., description="User ID")
     email: EmailStr = Field(..., description="User's email address")
@@ -155,35 +183,46 @@ class UserResponse(BaseModel):
     first_name: Optional[str] = Field(None, description="User's first name")
     last_name: Optional[str] = Field(None, description="User's last name")
     phone_number: Optional[str] = Field(None, description="User's phone number")
-    role: UserRole = Field(..., description="User role")
-    status: UserStatus = Field(..., description="User status")
+    date_of_birth: Optional[datetime] = Field(None, description="User's date of birth")
+    role: str = Field(..., description="User role")
+    status: str = Field(..., description="User status")
     
-    # Preferences
-    preferred_language: str = Field(..., description="Preferred language")
-    preferred_currency: str = Field(..., description="Preferred currency")
-    ai_interaction_style: str = Field(..., description="AI interaction style")
+    # Preferences with defaults to prevent validation errors
+    preferred_language: str = Field(default="en", description="Preferred language code")
+    preferred_currency: str = Field(default="USD", description="Preferred currency code")
+    voice_preference: Optional[str] = Field(None, description="Voice assistant preference")
+    ai_interaction_style: str = Field(default="friendly", description="AI interaction style")
+    price_range_preference: Optional[str] = Field(None, description="Price range preference")
     
-    # Timestamps
-    created_at: datetime = Field(..., description="Account creation timestamp")
-    updated_at: datetime = Field(..., description="Last update timestamp")
-    last_login: Optional[datetime] = Field(None, description="Last login timestamp")
+    # Privacy settings with defaults
+    allow_personalization: bool = Field(default=True, description="Allow AI personalization")
+    allow_marketing_emails: bool = Field(default=False, description="Allow marketing emails")
+    allow_voice_data_storage: bool = Field(default=True, description="Allow voice data storage")
     
+    # Timestamps - CRITICAL FIX: Make updated_at optional with default
+    created_at: datetime = Field(..., description="User creation timestamp")
+    updated_at: Optional[datetime] = Field(default=None, description="User last update timestamp")
+    last_login: Optional[datetime] = Field(None, description="User last login timestamp")
+
     class Config:
+        """Pydantic configuration."""
         from_attributes = True
 
 
-class UserProfileResponse(UserResponse):
-    """Extended user profile response with additional details."""
+class UserListResponse(BaseModel):
+    """Schema for paginated user list response."""
     
-    full_name: str = Field(..., description="User's full name")
-    date_of_birth: Optional[datetime] = Field(None, description="User's date of birth")
-    voice_preference: Optional[str] = Field(None, description="Voice preference")
-    price_range_preference: Optional[str] = Field(None, description="Price range preference")
+    users: List[UserResponse] = Field(..., description="List of users")
+    total: int = Field(..., description="Total number of users")
+    page: int = Field(..., description="Current page number")
+    size: int = Field(..., description="Page size")
+    pages: int = Field(..., description="Total number of pages")
+
+
+class MessageResponse(BaseModel):
+    """Schema for simple message response."""
     
-    # Privacy settings
-    allow_personalization: bool = Field(..., description="Allow personalization")
-    allow_marketing_emails: bool = Field(..., description="Allow marketing emails")
-    allow_voice_data_storage: bool = Field(..., description="Allow voice data storage")
+    message: str = Field(..., description="Response message")
 
 
 class AuthTokenResponse(BaseModel):
@@ -194,44 +233,3 @@ class AuthTokenResponse(BaseModel):
     token_type: str = Field(default="bearer", description="Token type")
     expires_in: int = Field(..., description="Token expiration time in seconds")
     user: UserResponse = Field(..., description="User information")
-
-
-class RefreshTokenRequest(BaseModel):
-    """Schema for token refresh request."""
-    
-    refresh_token: str = Field(..., description="Refresh token")
-
-
-class UserListResponse(BaseModel):
-    """Schema for user list response with pagination."""
-    
-    users: list[UserResponse] = Field(..., description="List of users")
-    total: int = Field(..., description="Total number of users")
-    page: int = Field(..., description="Current page number")
-    per_page: int = Field(..., description="Items per page")
-    total_pages: int = Field(..., description="Total number of pages")
-
-
-class MessageResponse(BaseModel):
-    """Schema for simple message responses."""
-    
-    message: str = Field(..., description="Response message")
-    success: bool = Field(default=True, description="Operation success status")
-
-
-class ErrorResponse(BaseModel):
-    """Schema for error responses."""
-    
-    error: str = Field(..., description="Error type")
-    message: str = Field(..., description="Error message")
-    details: Optional[dict] = Field(None, description="Additional error details")
-    success: bool = Field(default=False, description="Operation success status")
-
-
-class ValidationErrorResponse(BaseModel):
-    """Schema for validation error responses."""
-    
-    error: str = Field(default="validation_error", description="Error type")
-    message: str = Field(..., description="Error message")
-    errors: list[dict] = Field(..., description="List of validation errors")
-    success: bool = Field(default=False, description="Operation success status")

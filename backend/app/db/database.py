@@ -55,10 +55,6 @@ SessionLocal = async_sessionmaker(
 
 sync_session = SessionLocal
 
-def get_sync_session() -> AsyncSession:
-    """Get an async database session."""
-    return SessionLocal()
-
 async def get_db() -> AsyncSession:
     """Get async database session dependency."""
     async with SessionLocal() as db:
