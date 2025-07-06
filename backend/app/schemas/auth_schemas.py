@@ -6,7 +6,7 @@ Defines Pydantic models for authentication-related API operations.
 from datetime import datetime
 from typing import Optional
 from uuid import UUID
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
 
 
 class UserBase(BaseModel):
@@ -35,6 +35,19 @@ class UserCreate(UserBase):
         max_length=100, 
         description="User's password (min 8 characters)"
     )
+    confirm_password: str = Field(
+        ..., 
+        min_length=8, 
+        max_length=100, 
+        description="Confirm password (must match password)"
+    )
+    
+    # User preferences (from user_schemas.py structure)
+    preferred_language: str = Field(default="en", max_length=10, description="User's preferred language")
+    preferred_currency: str = Field(default="USD", max_length=5, description="User's preferred currency")
+    allow_marketing_emails: bool = Field(default=False, description="Allow marketing emails")
+    allow_personalization: bool = Field(default=True, description="Allow personalization")
+    allow_voice_data_storage: bool = Field(default=True, description="Allow voice data storage")
     
     @field_validator('password')
     @classmethod
@@ -45,7 +58,16 @@ class UserCreate(UserBase):
             raise ValueError('Password must contain at least one lowercase letter')
         if not any(c.isdigit() for c in v):
             raise ValueError('Password must contain at least one number')
+        if not any(c in "!@#$%^&*()_+-=[]{}|;:,.<>?" for c in v):
+            raise ValueError('Password must contain at least one special character')
         return v
+    
+    @model_validator(mode='after')
+    def validate_passwords_match(self):
+        """Validate that password and confirm_password match."""
+        if self.password != self.confirm_password:
+            raise ValueError('Passwords do not match')
+        return self
 
 
 class UserLogin(BaseModel):
@@ -93,13 +115,22 @@ class TokenResponse(BaseModel):
     refresh_token: str = Field(..., description="JWT refresh token")
     token_type: str = Field(default="bearer", description="Token type")
     expires_in: int = Field(..., description="Token expiration time in seconds")
-    user: UserResponse = Field(..., description="User information")
 
 
 class TokenRefresh(BaseModel):
     """Schema for refreshing JWT tokens."""
     
     refresh_token: str = Field(..., description="Refresh token")
+
+
+class TokenData(BaseModel):
+    """Schema for JWT token data."""
+    
+    user_id: UUID = Field(..., description="User ID")
+    username: str = Field(..., description="Username")
+    email: str = Field(..., description="Email")
+    role: str = Field(..., description="User role")
+    is_verified: bool = Field(..., description="User verification status")
 
 
 class PasswordChange(BaseModel):
@@ -112,6 +143,12 @@ class PasswordChange(BaseModel):
         max_length=100, 
         description="New password (min 8 characters)"
     )
+    confirm_new_password: str = Field(
+        ..., 
+        min_length=8, 
+        max_length=100, 
+        description="Confirm new password"
+    )
     
     @field_validator('new_password')
     @classmethod
@@ -122,7 +159,16 @@ class PasswordChange(BaseModel):
             raise ValueError('Password must contain at least one lowercase letter')
         if not any(c.isdigit() for c in v):
             raise ValueError('Password must contain at least one number')
+        if not any(c in "!@#$%^&*()_+-=[]{}|;:,.<>?" for c in v):
+            raise ValueError('Password must contain at least one special character')
         return v
+    
+    @model_validator(mode='after')
+    def validate_new_passwords_match(self):
+        """Validate that new_password and confirm_new_password match."""
+        if self.new_password != self.confirm_new_password:
+            raise ValueError('New passwords do not match')
+        return self
 
 
 class UserPreferences(BaseModel):
@@ -155,7 +201,7 @@ class ErrorResponse(BaseModel):
     details: Optional[dict] = Field(None, description="Additional error details")
     success: bool = Field(default=False, description="Operation success status")
 
-# Error response schemas
+
 class AuthErrorResponse(BaseModel):
     """Schema for authentication error responses."""
     

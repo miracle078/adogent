@@ -1,20 +1,22 @@
-
 from decouple import config
-from sqlalchemy import create_engine
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy_utils import create_database, database_exists
 
 Base = declarative_base()
 
 
 def get_engine(user, passwd, host, port, db):
-    url = f"postgresql://{user}:{passwd}@{host}:{port}/{db}"
-    if not database_exists(url):
-        create_database(url)
+    # Use async driver for PostgreSQL
+    url = f"postgresql+asyncpg://{user}:{passwd}@{host}:{port}/{db}"
+    
+    # Create database if it doesn't exist (sync operation)
+    sync_url = f"postgresql://{user}:{passwd}@{host}:{port}/{db}"
+    if not database_exists(sync_url):
+        create_database(sync_url)
 
-    # Create the SQLAlchemy engine with optimized pool settings
-    engine = create_engine(
+    # Create async engine with your existing settings
+    engine = create_async_engine(
         url,
         pool_size=20,  # Increased from 5 to 20 connections per worker
         max_overflow=30,  # Increased from 10 to 30 additional connections
@@ -23,8 +25,6 @@ def get_engine(user, passwd, host, port, db):
         pool_pre_ping=True,  # Enable connection health checks
         echo=False
     )
-    # Create all tables in the database using the model files
-    Base.metadata.create_all(bind=engine)
     return engine
 
 
@@ -44,18 +44,25 @@ engine = get_engine(
     db=settings["db_name"],
 )
 
-# Create a session factory
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+# Create async session factory
+SessionLocal = async_sessionmaker(
+    bind=engine,
+    class_=AsyncSession,
+    autocommit=False,
+    autoflush=False,
+    expire_on_commit=False,
+)
 
 sync_session = SessionLocal
 
-def get_sync_session() -> Session:
-    """Get a synchronous database session."""
+def get_sync_session() -> AsyncSession:
+    """Get an async database session."""
     return SessionLocal()
 
-def get_db() -> Session:
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+async def get_db() -> AsyncSession:
+    """Get async database session dependency."""
+    async with SessionLocal() as db:
+        try:
+            yield db
+        finally:
+            await db.close()

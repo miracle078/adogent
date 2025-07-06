@@ -53,3 +53,4 @@ typing_extensions==4.14.1
 urllib3==2.5.0
 uvicorn==0.35.0
 zstandard==0.23.0
+email_validator==2.2.0
