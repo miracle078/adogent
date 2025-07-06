@@ -35,10 +35,20 @@ class Settings:
     ADMIN_BOOTSTRAP_API_KEY: str = config("ADMIN_BOOTSTRAP_API_KEY")    
     # Groq API Configuration
     GROQ_API_KEY: str = config("GROQ_API_KEY")
-    GROQ_BASE_URL: str = config("GROQ_BASE_URL", default="https://api.groq.com/openai/v1")
     GROQ_MODEL: str = config("GROQ_MODEL", default="llama3-70b-8192")
     GROQ_MAX_TOKENS: int = config("GROQ_MAX_TOKENS", default=1024, cast=int)
     GROQ_TEMPERATURE: float = config("GROQ_TEMPERATURE", default=0.7, cast=float)
+    GROQ_TIMEOUT: int = config("GROQ_TIMEOUT", default=30, cast=int)
+    
+    # Ollama Configuration (simplified for LangChain)
+    OLLAMA_MODEL: str = config("OLLAMA_MODEL", default="llava:7b")
+    OLLAMA_TEMPERATURE: float = config("OLLAMA_TEMPERATURE", default=0.7, cast=float)
+    OLLAMA_TIMEOUT: int = config("OLLAMA_TIMEOUT", default=60, cast=int)
+    
+    # AI Agent Configuration
+    MAX_CONVERSATION_HISTORY: int = config("MAX_CONVERSATION_HISTORY", default=10, cast=int)
+    ENABLE_CONVERSATION_CONTEXT: bool = config("ENABLE_CONVERSATION_CONTEXT", default=True, cast=bool)
+    PRODUCT_RECOMMENDATION_LIMIT: int = config("PRODUCT_RECOMMENDATION_LIMIT", default=5, cast=int)
     
     # API Settings
     API_V1_PREFIX: str = config("API_V1_PREFIX", default="/api/v1")
