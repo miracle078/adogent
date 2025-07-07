@@ -208,3 +208,92 @@ async def list_products(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve products"
         )
+
+from typing import List
+from uuid import UUID
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Path
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.db.database import get_db
+from app.services.product_service import ProductService
+from app.schemas.product_schemas import (
+    ProductCreateRequest,
+    ProductResponse,
+    ProductUpdateRequest,
+    ProductListResponse,
+)
+
+router = APIRouter(prefix="/api/v1/products", tags=["Products"])
+
+
+@router.post(
+    "/",
+    response_model=ProductResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_product(
+    payload: ProductCreateRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    return await ProductService(db).create(payload)
+
+
+@router.get(
+    "/",
+    response_model=ProductListResponse,
+)
+async def list_products(
+    page: int = Query(1, ge=1),
+    size: int = Query(50, ge=1, le=200),
+    db: AsyncSession = Depends(get_db),
+):
+    skip = (page - 1) * size
+    items = await ProductService(db).list(skip=skip, limit=size)
+    total = len(items)  # ou mieux : count séparé si gros volume
+    return ProductListResponse(
+        products=items,
+        total=total,
+        page=page,
+        size=size,
+        pages=(total + size - 1) // size,
+    )
+
+
+@router.get(
+    "/{product_id}",
+    response_model=ProductResponse,
+)
+async def get_product(
+    product_id: UUID = Path(...),
+    db: AsyncSession = Depends(get_db),
+):
+    prod = await ProductService(db).get_by_id(product_id)
+    if not prod:
+        raise HTTPException(status_code=404, detail="Produit non trouvé")
+    return prod
+
+
+@router.put(
+    "/{product_id}",
+    response_model=ProductResponse,
+)
+async def update_product(
+    product_id: UUID,
+    payload: ProductUpdateRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    updated = await ProductService(db).update(product_id, payload)
+    if not updated:
+        raise HTTPException(status_code=404, detail="Produit non trouvé")
+    return updated
+
+
+@router.delete(
+    "/{product_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def delete_product(
+    product_id: UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    await ProductService(db).delete(product_id)

@@ -311,3 +311,118 @@ async def get_category_tree(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve category tree"
         )
+
+from typing import List
+from uuid import UUID
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Path
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.db.database import get_db
+from app.services.category_service import CategoryService
+from app.schemas.category_schemas import (
+    CategoryCreateRequest,
+    CategoryResponse,
+    CategoryUpdateRequest,
+    CategoryListResponse,
+    CategoryTreeResponse,
+)
+
+router = APIRouter(prefix="/api/v1/categories", tags=["Categories"])
+
+
+@router.post(
+    "/",
+    response_model=CategoryResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_category(
+    payload: CategoryCreateRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    return await CategoryService(db).create(payload)
+
+
+@router.get(
+    "/",
+    response_model=CategoryListResponse,
+)
+async def list_categories(
+    page: int = Query(1, ge=1),
+    size: int = Query(50, ge=1, le=200),
+    db: AsyncSession = Depends(get_db),
+):
+    skip = (page - 1) * size
+    items = await CategoryService(db).list(skip=skip, limit=size)
+    total = len(items)
+    return CategoryListResponse(
+        categories=items,
+        total=total,
+        page=page,
+        size=size,
+        pages=(total + size - 1) // size,
+    )
+
+
+@router.get(
+    "/{category_id}",
+    response_model=CategoryResponse,
+)
+async def get_category(
+    category_id: UUID = Path(...),
+    db: AsyncSession = Depends(get_db),
+):
+    cat = await CategoryService(db).get_by_id(category_id)
+    if not cat:
+        raise HTTPException(status_code=404, detail="Catégorie non trouvée")
+    return cat
+
+
+@router.put(
+    "/{category_id}",
+    response_model=CategoryResponse,
+)
+async def update_category(
+    category_id: UUID,
+    payload: CategoryUpdateRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    updated = await CategoryService(db).update(category_id, payload)
+    if not updated:
+        raise HTTPException(status_code=404, detail="Catégorie non trouvée")
+    return updated
+
+
+@router.delete(
+    "/{category_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def delete_category(
+    category_id: UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    await CategoryService(db).delete(category_id)
+
+
+@router.get(
+    "/slug/{slug}",
+    response_model=CategoryResponse,
+)
+async def get_category_by_slug(
+    slug: str,
+    db: AsyncSession = Depends(get_db),
+):
+    cat = await CategoryService(db).get_by_slug(slug)
+    if not cat:
+        raise HTTPException(status_code=404, detail="Catégorie non trouvée")
+    return cat
+
+
+@router.get(
+    "/tree/all",
+    response_model=CategoryTreeResponse,
+)
+async def get_category_tree(
+    db: AsyncSession = Depends(get_db),
+):
+    tree = await CategoryService(db).get_tree()
+    return CategoryTreeResponse(categories=tree, total=len(tree))

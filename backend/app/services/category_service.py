@@ -326,3 +326,79 @@ class CategoryService:
                     parent.children.append(category)
         
         return root_categories
+    
+"""
+Category service pour ADOGENT e-commerce platform.
+CRUD et arbre hiérarchique.
+"""
+from typing import List, Optional
+from uuid import UUID
+from sqlalchemy import select, delete
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models.category import Category
+from app.schemas.category_schemas import (
+    CategoryCreateRequest,
+    CategoryUpdateRequest,
+)
+from app.logging.log import logger
+
+
+class CategoryService:
+    def __init__(self, db: AsyncSession):
+        self.db = db
+
+    async def create(self, payload: CategoryCreateRequest) -> Category:
+        db_obj = Category(**payload.model_dump())
+        self.db.add(db_obj)
+        await self.db.commit()
+        await self.db.refresh(db_obj)
+        logger.info(f"Categorie créée: {db_obj.id}")
+        return db_obj
+
+    async def get_by_id(self, category_id: UUID) -> Optional[Category]:
+        result = await self.db.execute(
+            select(Category).where(Category.id == category_id)
+        )
+        return result.scalar_one_or_none()
+
+    async def get_by_slug(self, slug: str) -> Optional[Category]:
+        result = await self.db.execute(
+            select(Category).where(Category.slug == slug)
+        )
+        return result.scalar_one_or_none()
+
+    async def list(self, skip: int = 0, limit: int = 100) -> List[Category]:
+        result = await self.db.execute(
+            select(Category).offset(skip).limit(limit)
+        )
+        return result.scalars().all()
+
+    async def update(
+        self, category_id: UUID, payload: CategoryUpdateRequest
+    ) -> Optional[Category]:
+        db_obj = await self.get_by_id(category_id)
+        if not db_obj:
+            return None
+        for field, value in payload.model_dump(exclude_unset=True).items():
+            setattr(db_obj, field, value)
+        await self.db.commit()
+        await self.db.refresh(db_obj)
+        logger.info(f"Categorie mise à jour: {db_obj.id}")
+        return db_obj
+
+    async def delete(self, category_id: UUID) -> None:
+        await self.db.execute(delete(Category).where(Category.id == category_id))
+        await self.db.commit()
+        logger.info(f"Categorie supprimée: {category_id}")
+
+    async def get_tree(self) -> List[Category]:
+        all_cats = (await self.db.execute(select(Category))).scalars().all()
+        by_id = {c.id: c for c in all_cats}
+        tree: List[Category] = []
+        for c in all_cats:
+            if c.parent_id and c.parent_id in by_id:
+                by_id[c.parent_id].children.append(c)
+            else:
+                tree.append(c)
+        return tree
