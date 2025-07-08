@@ -1,191 +1,221 @@
 import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { VoiceInterface } from '@/components/VoiceInterface';
-import { ChatInterface } from '@/components/ChatInterface';
-import { ProductShowcase } from '@/components/ProductShowcase';
-import heroImage from '@/assets/hero-bg.jpg';
-
-interface Message {
-  id: string;
-  text: string;
-  sender: 'user' | 'agent';
-  timestamp: Date;
-  agentType?: 'hunter' | 'authenticator' | 'portfolio';
-}
+import { motion } from 'framer-motion';
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Link } from "react-router-dom";
+import { Cpu, ShoppingCart, Store, BarChart3, Rocket } from 'lucide-react';
 
 const Index = () => {
-  const [activeTab, setActiveTab] = useState<'voice' | 'chat' | 'products'>('voice');
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [isVoiceListening, setIsVoiceListening] = useState(false);
-  const [isChatLoading, setIsChatLoading] = useState(false);
-
-  const handleVoiceTranscript = (text: string) => {
-    console.log('Voice transcript:', text);
-    // Here you would process the voice input and potentially add it as a message
-    const newMessage: Message = {
-      id: Date.now().toString(),
-      text: text,
-      sender: 'user',
-      timestamp: new Date()
-    };
-    setMessages(prev => [...prev, newMessage]);
-    
-    // Simulate AI response
-    setTimeout(() => {
-      const aiResponse: Message = {
-        id: (Date.now() + 1).toString(),
-        text: "I heard you say: " + text + ". How can I help you find the perfect luxury item?",
-        sender: 'agent',
-        timestamp: new Date(),
-        agentType: 'hunter'
-      };
-      setMessages(prev => [...prev, aiResponse]);
-    }, 1000);
-  };
-
-  const handleChatMessage = (text: string) => {
-    const newMessage: Message = {
-      id: Date.now().toString(),
-      text: text,
-      sender: 'user',
-      timestamp: new Date()
-    };
-    setMessages(prev => [...prev, newMessage]);
-    setIsChatLoading(true);
-
-    // Simulate AI processing
-    setTimeout(() => {
-      const aiResponse: Message = {
-        id: (Date.now() + 1).toString(),
-        text: "I understand you're looking for something special. Let me search our curated collection for you.",
-        sender: 'agent',
-        timestamp: new Date(),
-        agentType: 'hunter'
-      };
-      setMessages(prev => [...prev, aiResponse]);
-      setIsChatLoading(false);
-    }, 1500);
-  };
-
-  const handleProductSelect = (product: any) => {
-    console.log('Selected product:', product);
-    // Here you would handle product selection
-  };
-
   return (
-    <div className="min-h-screen bg-gradient-dark">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-teal-800">
+      {/* Header */}
+      <header className="container mx-auto px-4 py-6">
+        <div className="flex items-center justify-between">
+          <motion.div
+            className="flex items-center space-x-2"
+            initial={{ x: -50, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            transition={{ duration: 0.6 }}
+          >
+            <div className="w-8 h-8 bg-teal-400 rounded-lg flex items-center justify-center">
+              <Store className="w-5 h-5 text-white" />
+            </div>
+            <span className="text-xl font-bold text-white">ADOGENT</span>
+          </motion.div>
+        </div>
+      </header>
+
       {/* Hero Section */}
-      <div 
-        className="relative h-screen flex items-center justify-center overflow-hidden"
-        style={{
-          backgroundImage: `url(${heroImage})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          backgroundAttachment: 'fixed'
-        }}
+      <section className="container mx-auto px-4 py-20">
+        <div className="grid lg:grid-cols-2 gap-12 items-center">
+          <motion.div
+            className="space-y-8"
+            initial={{ y: 40, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ duration: 0.8 }}
+          >
+            <h1 className="text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-teal-400 to-blue-500">
+              Autonomous
+              <br />
+              <span className="text-4xl text-blue-400">Luxury Commerce</span>
+            </h1>
+
+            <p className="text-xl text-gray-300 leading-relaxed">
+              AI-powered agents managing your luxury investment journey.
+            </p>
+
+            <div className="space-y-4">
+              <p className="text-teal-400 text-lg font-medium">
+                Buy • Sell • Authenticate
+              </p>
+
+              <div className="flex flex-wrap gap-4">
+                <motion.div whileHover={{ scale: 1.05 }}>
+                  <Link to="/marketplace">
+                    <Button className="bg-teal-500 hover:bg-teal-600 text-white px-8 py-3 rounded-xl text-lg">
+                      <ShoppingCart className="w-5 h-5 mr-2" />
+                      Marketplace →
+                    </Button>
+                  </Link>
+                </motion.div>
+
+                <motion.div whileHover={{ scale: 1.05 }}>
+                  <Link to="/ai-assistant">
+                    <Button variant="outline" className="border-blue-400 text-blue-400 hover:bg-blue-400 hover:text-white px-8 py-3 rounded-xl text-lg">
+                      <Cpu className="w-5 h-5 mr-2" />
+                      AI Assistant →
+                    </Button>
+                  </Link>
+                </motion.div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-8 pt-8">
+              {[ 
+                { label: "Accuracy", value: "99.5%", color: "text-teal-400" },
+                { label: "Support", value: "24/7", color: "text-blue-400" },
+                { label: "Deals Closed", value: "1000+", color: "text-purple-400" },
+              ].map((item, i) => (
+                <motion.div key={i} className="text-center" whileInView={{ opacity: 1, y: 0 }} initial={{ opacity: 0, y: 20 }} transition={{ delay: i * 0.2 }}>
+                  <div className={`text-3xl font-bold ${item.color}`}>{item.value}</div>
+                  <div className="text-gray-400">{item.label}</div>
+                </motion.div>
+              ))}
+            </div>
+          </motion.div>
+
+          <div className="relative">
+            <div className="space-y-6">
+              {[ 
+                { Icon: Cpu, title: "AI Analysis", desc: "Smart recommendations", gradient: "from-purple-500 via-blue-500 to-teal-500" },
+                { Icon: Store, title: "Verified Sellers", desc: "Trusted marketplace", gradient: "from-green-400 to-teal-500" },
+                { Icon: BarChart3, title: "Data Driven", desc: "Market insights", gradient: "from-blue-400 to-indigo-500" }
+              ].map((card, index) => (
+                <motion.div
+                  key={index}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.2 }}
+                >
+                  <Card className={`bg-white/10 backdrop-blur-lg border-white/20 p-4 transform hover:rotate-0 transition-transform duration-300 ${index === 1 ? 'ml-8 -rotate-1' : 'rotate-1'}`}>
+                    <CardContent className="p-0">
+                      <div className="flex items-center space-x-3 mb-4">
+                        <div className="w-10 h-10 bg-teal-500 rounded-lg flex items-center justify-center">
+                          <card.Icon className="w-5 h-5 text-white" />
+                        </div>
+                        <div>
+                          <h3 className="text-white font-semibold">{card.title}</h3>
+                          <p className="text-gray-300 text-sm">{card.desc}</p>
+                        </div>
+                      </div>
+                      <div className={`w-full bg-gradient-to-r ${card.gradient} h-2 rounded-full`}></div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Features Section */}
+      <motion.section
+        className="container mx-auto px-4 py-20"
+        initial={{ opacity: 0, y: 50 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.8 }}
       >
-        <div className="absolute inset-0 bg-gradient-dark opacity-70" />
-        
-        <div className="relative z-10 text-center max-w-4xl mx-auto px-4">
-          <Badge className="mb-6 bg-primary/20 text-primary border-primary/30 text-sm">
-            AI-Powered Luxury Commerce
-          </Badge>
-          
-          <h1 className="text-5xl md:text-7xl font-bold mb-6 bg-gradient-primary bg-clip-text text-transparent">
-            ADOGENT
-          </h1>
-          
-          <p className="text-xl md:text-2xl text-foreground/80 mb-8 leading-relaxed">
-            Your autonomous AI agents for luxury commerce.<br />
-            Voice-first. Intelligent. Exclusive.
-          </p>
-          
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button 
-              variant="luxury" 
-              size="xl"
-              onClick={() => setActiveTab('voice')}
-              className="transform hover:scale-105"
-            >
-              Start Voice Session
-            </Button>
-            <Button 
-              variant="premium" 
-              size="xl"
-              onClick={() => setActiveTab('chat')}
-            >
-              Chat with AI Agents
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      {/* Navigation Tabs */}
-      <div className="sticky top-0 z-50 bg-background/80 backdrop-blur-lg border-b border-primary/20">
-        <div className="max-w-6xl mx-auto px-4 py-4">
-          <div className="flex space-x-1 bg-card/50 p-1 rounded-lg backdrop-blur-sm">
-            {[
-              { id: 'voice', label: 'Voice Assistant', icon: '🎤' },
-              { id: 'chat', label: 'AI Chat', icon: '💬' },
-              { id: 'products', label: 'Luxury Collection', icon: '💎' }
-            ].map((tab) => (
-              <Button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
-                variant={activeTab === tab.id ? 'luxury' : 'ghost'}
-                size="sm"
-                className="flex-1 text-sm"
-              >
-                <span className="mr-2">{tab.icon}</span>
-                {tab.label}
-              </Button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="max-w-6xl mx-auto px-4 py-8">
-        {activeTab === 'voice' && (
-          <div className="max-w-2xl mx-auto">
-            <VoiceInterface
-              onTranscript={handleVoiceTranscript}
-              isListening={isVoiceListening}
-              onToggleListening={() => setIsVoiceListening(!isVoiceListening)}
-            />
-          </div>
-        )}
-
-        {activeTab === 'chat' && (
-          <div className="h-[600px]">
-            <ChatInterface
-              onSendMessage={handleChatMessage}
-              messages={messages}
-              isLoading={isChatLoading}
-            />
-          </div>
-        )}
-
-        {activeTab === 'products' && (
-          <ProductShowcase
-            onProductSelect={handleProductSelect}
-            title="AI-Curated Luxury Collection"
-          />
-        )}
-      </div>
-
-      {/* Footer */}
-      <footer className="mt-16 py-8 border-t border-primary/20 bg-card/30">
-        <div className="max-w-6xl mx-auto px-4 text-center">
-          <p className="text-muted-foreground">
-            ADOGENT - Powered by AI Agents for RAISE YOUR HACK
+        <div className="text-center mb-16">
+          <h2 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400 mb-4">
+            Why Choose ADOGENT?
+          </h2>
+          <p className="text-gray-400 text-lg">
+            Advanced technology meets luxury reselling.
           </p>
         </div>
-      </footer>
+
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+          {[ 
+            {
+              icon: <Cpu className="w-8 h-8" />,
+              title: "AI-Powered Analysis",
+              description: "Smart recommendations based on market data",
+              color: "from-teal-500 to-teal-600"
+            },
+            {
+              icon: <BarChart3 className="w-8 h-8" />,
+              title: "Data-Driven Insights",
+              description: "Real-time analytics to make informed decisions",
+              color: "from-blue-500 to-blue-600"
+            },
+            {
+              icon: <Rocket className="w-8 h-8" />,
+              title: "Automated Transactions",
+              description: "AI agents that make the buying and selling easier",
+              color: "from-green-500 to-green-600"
+            },
+            {
+              icon: <Store className="w-8 h-8" />,
+              title: "Verified Luxury Goods",
+              description: "Authenticate and verify your products seamlessly",
+              color: "from-purple-500 to-purple-600"
+            }
+          ].map((feature, index) => (
+            <motion.div key={index} whileInView={{ opacity: 1, y: 0 }} initial={{ opacity: 0, y: 20 }} transition={{ delay: index * 0.2 }}>
+              <Card className="bg-white/5 backdrop-blur-sm border-white/10 hover:bg-white/10 transition-all duration-300 group">
+                <CardContent className="p-6 text-center">
+                  <div className={`w-16 h-16 bg-gradient-to-r ${feature.color} rounded-xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300`}>
+                    <div className="text-white">
+                      {feature.icon}
+                    </div>
+                  </div>
+                  <h3 className="text-white font-semibold text-lg mb-2">{feature.title}</h3>
+                  <p className="text-gray-400 text-sm leading-relaxed">{feature.description}</p>
+                </CardContent>
+              </Card>
+            </motion.div>
+          ))}
+        </div>
+      </motion.section>
+
+      {/* CTA Section */}
+      <motion.section
+        className="container mx-auto px-4 py-20"
+        initial={{ opacity: 0, scale: 0.95 }}
+        whileInView={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.8 }}
+      >
+        <Card className="bg-white/5 backdrop-blur-sm border-white/10 p-12 text-center">
+          <CardContent className="p-0">
+            <h2 className="text-3xl font-bold text-white mb-4">Get Started Today</h2>
+            <p className="text-gray-400 mb-8 max-w-2xl mx-auto">
+              Revolutionizing the luxury e-commerce experience with AI-powered agents.
+            </p>
+
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <motion.div whileHover={{ scale: 1.05 }}>
+                <Link to="/marketplace">
+                  <Button className="bg-teal-500 hover:bg-teal-600 text-white px-8 py-3 rounded-xl text-lg">
+                    Start Shopping
+                  </Button>
+                </Link>
+              </motion.div>
+
+              <motion.div whileHover={{ scale: 1.05 }}>
+                <Link to="/ai-assistant">
+                  <Button variant="outline" className="border-blue-400 text-blue-400 hover:bg-blue-400 hover:text-white px-8 py-3 rounded-xl text-lg">
+                    Ask AI Assistant
+                  </Button>
+                </Link>
+              </motion.div>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.section>
     </div>
   );
 };
 
 export default Index;
+
