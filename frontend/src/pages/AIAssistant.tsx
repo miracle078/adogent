@@ -42,7 +42,7 @@ const AIAssistant = () => {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
-      content: "Hello! I'm your AI assistant for luxury goods. How can I assist you today?",
+      content: "You’ve found the best AI for luxury goods.Here to make your fashion choices flawless. What do you need today??",
       isUser: false,
       timestamp: new Date()
     }
@@ -281,7 +281,7 @@ const AIAssistant = () => {
               <Bot className="w-12 h-12 text-blue-400 mx-auto mb-4" />
               <h1 className="text-3xl font-bold text-white mb-2">AI Assistant</h1>
               <p className="text-gray-300">
-                I can help with luxury shopping, price comparison, product authentication, and portfolio management.
+                I can help with enriching your shopping experience, global price comparison, product authentication and portfolio management.
               </p>
             </CardContent>
           </Card>
