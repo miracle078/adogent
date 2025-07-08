@@ -21,7 +21,7 @@
 ---
 
 <p align="center">
-An intelligent luxury e-commerce platform powered by AI agents that provides personalized shopping experiences through natural language conversations and voice-first interfaces.
+An intelligent luxury e-commerce platform powered by AI agents that provides personalized shopping experiences through natural language conversations and voice-first interfaces. Please not backend is deployed at: https://adogent.onrender.com
 </p>
 
 ## 📝 Table of Contents
