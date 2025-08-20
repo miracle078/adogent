@@ -8,9 +8,11 @@ import MarketPlace from "./pages/MarketPlace";   // /plant-analysis
 import ProductDetail from "./pages/ProductDetail";
 import AIAssistant from "./pages/AIAssistant";
 import Favorites from "./pages/Favorites";
-
+import Test from "./pages/Test";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
+import Register from "./pages/Register";
+import CreateProduct from "./pages/CreateProduct";
 
 const queryClient = new QueryClient();
 
@@ -22,11 +24,13 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Index />} />
+          <Route path="/test" element={<Test />} />
           <Route path="/marketplace" element={<MarketPlace />} /> {/* Marketplace */}
-           <Route path="/product/:id" element={<ProductDetail />} />
-
+          <Route path="/product/:id" element={<ProductDetail />} />
+          <Route path="/product/create" element={<CreateProduct />} />
           <Route path="/favorites" element={<Favorites />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
           <Route path="/ai-assistant" element={<AIAssistant />} />
           <Route path="*" element={<NotFound />} />
         </Routes>

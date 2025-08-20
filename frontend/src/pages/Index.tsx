@@ -1,38 +1,116 @@
 
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Link } from "react-router-dom";
-import { Cpu, ShoppingCart, Store, BarChart3, Rocket, Shield, Globe, Sparkles } from 'lucide-react';
+import { Cpu, ShoppingCart, Store, BarChart3, Rocket, Shield, Globe, Sparkles, User, LogIn, Menu, X } from 'lucide-react';
 
 const Index = () => {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 20);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-100 to-purple-200">
-      {/* Header */}
-      <header className="container mx-auto px-6 py-6">
-        <div className="flex items-center justify-between">
-          <motion.div
-            className="flex items-center space-x-3"
-            initial={{ y: -30, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ duration: 0.6 }}
-          >
-            <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-xl flex items-center justify-center shadow-lg">
-              <Store className="w-7 h-7 text-white" />
-            </div>
-            <span className="text-3xl font-extrabold text-gray-800 tracking-wide">ADOGENT</span>
-          </motion.div>
-          
-          <motion.nav
-            className="hidden md:flex space-x-8"
-            initial={{ y: -30, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-          >
-            <a href="#features" className="text-gray-700 hover:text-gray-900 transition-colors font-medium">Features</a>
-            <a href="#marketplace" className="text-gray-700 hover:text-gray-900 transition-colors font-medium">Marketplace</a>
-            <a href="#about" className="text-gray-700 hover:text-gray-900 transition-colors font-medium">About</a>
-          </motion.nav>
+      {/* Enhanced Header with Auth Buttons */}
+      <header className={`sticky top-0 z-50 transition-all duration-300 ${scrolled ? 'bg-white/80 backdrop-blur-xl shadow-lg' : 'bg-transparent'}`}>
+        <div className="container mx-auto px-6 py-4">
+          <div className="flex items-center justify-between">
+            <motion.div
+              className="flex items-center space-x-3"
+              initial={{ y: -30, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ duration: 0.6 }}
+            >
+              <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-xl flex items-center justify-center shadow-lg">
+                <Store className="w-7 h-7 text-white" />
+              </div>
+              <span className="text-3xl font-extrabold text-gray-800 tracking-wide">ADOGENT</span>
+            </motion.div>
+            
+            {/* Desktop Navigation */}
+            <motion.nav
+              className="hidden lg:flex items-center space-x-8"
+              initial={{ y: -30, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ duration: 0.6, delay: 0.2 }}
+            >
+              <a href="#features" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">Features</a>
+              <a href="#marketplace" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">Marketplace</a>
+              <a href="#about" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">About</a>
+              
+              <div className="flex items-center space-x-3 ml-8">
+                <Link to="/login">
+                  <Button 
+                    variant="ghost" 
+                    className="text-gray-700 hover:text-blue-600 hover:bg-blue-50 font-medium"
+                  >
+                    <LogIn className="w-4 h-4 mr-2" />
+                    Sign In
+                  </Button>
+                </Link>
+                <Link to="/register">
+                  <Button 
+                    className="bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white font-medium shadow-md"
+                  >
+                    <User className="w-4 h-4 mr-2" />
+                    Get Started
+                  </Button>
+                </Link>
+              </div>
+            </motion.nav>
+
+            {/* Mobile Menu Button */}
+            <button
+              className="lg:hidden p-2 rounded-lg hover:bg-white/20 transition-colors"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            >
+              {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            </button>
+          </div>
+
+          {/* Mobile Menu */}
+          {mobileMenuOpen && (
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="lg:hidden mt-4 pb-4 border-t border-white/20"
+            >
+              <nav className="flex flex-col space-y-3 mt-4">
+                <a href="#features" className="text-gray-700 hover:text-blue-600 transition-colors font-medium py-2">Features</a>
+                <a href="#marketplace" className="text-gray-700 hover:text-blue-600 transition-colors font-medium py-2">Marketplace</a>
+                <a href="#about" className="text-gray-700 hover:text-blue-600 transition-colors font-medium py-2">About</a>
+                
+                <div className="flex flex-col space-y-2 pt-3 border-t border-white/20">
+                  <Link to="/login">
+                    <Button 
+                      variant="outline" 
+                      className="w-full justify-start text-gray-700 hover:text-blue-600 hover:bg-blue-50"
+                    >
+                      <LogIn className="w-4 h-4 mr-2" />
+                      Sign In
+                    </Button>
+                  </Link>
+                  <Link to="/register">
+                    <Button 
+                      className="w-full justify-start bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white"
+                    >
+                      <User className="w-4 h-4 mr-2" />
+                      Get Started
+                    </Button>
+                  </Link>
+                </div>
+              </nav>
+            </motion.div>
+          )}
         </div>
       </header>
 

@@ -3,14 +3,15 @@ Product service for ADOGENT e-commerce platform.
 Handles core product operations and business logic.
 """
 
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from uuid import UUID
 from datetime import datetime
-from sqlalchemy import select, and_, or_
+from sqlalchemy import select, and_, or_, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import Select
 
 from app.models.product import Product
+from app.models.product_image import ProductImage
 from app.schemas.product_schemas import ProductCreateRequest, ProductUpdateRequest, ProductStatus
 from app.logging.log import logger
 
@@ -254,3 +255,121 @@ class ProductService:
             query = query.order_by(sort_column.desc())
             
         return query
+    
+    async def add_product_image(
+        self,
+        product_id: UUID,
+        url: str,
+        storage_path: str,
+        thumbnail_url: Optional[str] = None,
+        is_primary: bool = False,
+        display_order: int = 0
+    ) -> ProductImage:
+        """
+        Add an image to a product.
+        
+        Args:
+            product_id: Product ID
+            url: Image URL
+            storage_path: Cloudinary public_id or storage path
+            thumbnail_url: Thumbnail URL
+            is_primary: Whether this is the primary image
+            display_order: Display order
+            
+        Returns:
+            Created ProductImage
+        """
+        if is_primary:
+            await self.db.execute(
+                select(ProductImage).where(
+                    and_(
+                        ProductImage.product_id == product_id,
+                        ProductImage.is_primary == True
+                    )
+                ).with_for_update()
+            )
+            await self.db.execute(
+                select(ProductImage).where(
+                    ProductImage.product_id == product_id
+                ).execution_options(synchronize_session="fetch")
+            )
+            result = await self.db.execute(
+                select(ProductImage).where(
+                    and_(
+                        ProductImage.product_id == product_id,
+                        ProductImage.is_primary == True
+                    )
+                )
+            )
+            existing_primary = result.scalars().all()
+            for img in existing_primary:
+                img.is_primary = False
+        
+        image = ProductImage(
+            product_id=product_id,
+            url=url,
+            storage_path=storage_path,
+            storage_provider="cloudinary",
+            thumbnail_url=thumbnail_url,
+            is_primary=is_primary,
+            display_order=display_order
+        )
+        
+        self.db.add(image)
+        await self.db.commit()
+        await self.db.refresh(image)
+        
+        logger.info(f"Added image to product {product_id}: {image.id}")
+        return image
+    
+    async def get_product_images(self, product_id: UUID) -> List[ProductImage]:
+        """
+        Get all images for a product.
+        
+        Args:
+            product_id: Product ID
+            
+        Returns:
+            List of product images
+        """
+        query = select(ProductImage).where(
+            ProductImage.product_id == product_id
+        ).order_by(ProductImage.display_order)
+        
+        result = await self.db.execute(query)
+        return result.scalars().all()
+    
+    async def get_product_image_count(self, product_id: UUID) -> int:
+        """
+        Get count of images for a product.
+        
+        Args:
+            product_id: Product ID
+            
+        Returns:
+            Number of images
+        """
+        images = await self.get_product_images(product_id)
+        return len(images)
+    
+    async def delete_product_images(self, product_id: UUID) -> bool:
+        """
+        Delete all images for a product.
+        
+        Args:
+            product_id: Product ID
+            
+        Returns:
+            Success status
+        """
+        try:
+            await self.db.execute(
+                delete(ProductImage).where(ProductImage.product_id == product_id)
+            )
+            await self.db.commit()
+            logger.info(f"Deleted all images for product {product_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Error deleting product images: {str(e)}")
+            await self.db.rollback()
+            return False
