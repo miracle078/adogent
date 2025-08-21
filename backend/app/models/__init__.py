@@ -3,6 +3,7 @@ from .user import User, UserRole, UserStatus
 from .user_session import UserSession
 from .category import Category
 from .product import Product, ProductStatus, ProductCondition
+from .product_image import ProductImage
 
 __all__ = [
     "BaseModel",
@@ -14,4 +15,5 @@ __all__ = [
     "Product",
     "ProductStatus",
     "ProductCondition",
+    "ProductImage",
 ]

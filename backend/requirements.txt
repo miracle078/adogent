@@ -1,0 +1,41 @@
+# Core dependencies
+fastapi==0.115.14
+uvicorn[standard]==0.35.0
+python-multipart==0.0.19
+
+# Database
+sqlalchemy==2.0.36
+asyncpg==0.30.0
+psycopg2-binary==2.9.10
+alembic==1.14.0
+sqlalchemy-utils==0.41.2
+
+# Authentication & Security
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+bcrypt==4.3.0
+python-decouple==3.8
+
+# AI & LLM
+groq==0.29.0
+langchain-groq==0.2.0
+langchain-ollama==0.3.0
+ollama==0.5.1
+
+# Data validation
+pydantic==2.11.0b2
+pydantic-settings==2.8.1
+email-validator==2.2.0
+
+# Utilities
+python-dotenv==1.0.1
+httpx==0.28.1
+aiofiles==24.1.0
+
+# Image storage
+cloudinary==1.43.0
+
+# Development dependencies (for production too)
+pytest==8.3.5
+pytest-asyncio==0.25.2
+pytest-cov==6.1.1

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Link } from "react-router-dom";
 import { ArrowLeft, Send, Mic, MicOff, Bot, User, Volume2, VolumeX, Upload, X, Image } from 'lucide-react';
 import { toast } from "sonner";
+import { aiService } from '@/lib/api';
 
 interface Message {
   id: string;
@@ -65,9 +66,9 @@ const AIAssistant = () => {
   }, [messages]);
 
   useEffect(() => {
-    fetch(`${import.meta.env.VITE_BACKEND_URL}/api/user/favorites`)
-      .then(res => res.json())
-      .then(data => setFavorites(data.favorites || []));
+    // TODO: Implement favorites endpoint when available
+    // For now, use mock data or empty array
+    setFavorites([]);
   }, []);
 
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -96,15 +97,17 @@ const AIAssistant = () => {
 
   const analyzePlantImage = async (base64Image: string): Promise<string> => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/analyze`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ image: base64Image }),
+      // Convert base64 to blob for the API
+      const base64Response = await fetch(`data:image/jpeg;base64,${base64Image}`);
+      const blob = await base64Response.blob();
+      const file = new File([blob], "image.jpg", { type: "image/jpeg" });
+      
+      const response = await aiService.analyzeImage({
+        image_file: file,
+        analysis_type: 'product'
       });
-
-      const result = await response.json();
-      if (!result.result) return "No prediction result.";
-      return typeof result.result === "string" ? result.result : JSON.stringify(result.result);
+      
+      return response.analysis || "No analysis result.";
     } catch (error) {
       console.error("Backend error:", error);
       return "Image analysis failed.";
@@ -171,17 +174,18 @@ const AIAssistant = () => {
     });
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/assistant`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: chatHistory }),
+      const response = await aiService.sendMessage({
+        message: userMessage.content,
+        context: {
+          favorites: favorites,
+          interests: interestsPrompt,
+          conversation_history: chatHistory
+        }
       });
-
-      const data = await response.json();
 
       const aiResponse: Message = {
         id: (Date.now() + 2).toString(),
-        content: data.reply || "Sorry, I couldn't get a response from the AI at this time.",
+        content: response.response || "Sorry, I couldn't get a response from the AI at this time.",
         isUser: false,
         timestamp: new Date(),
       };

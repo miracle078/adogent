@@ -1,37 +1,172 @@
-
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
+import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
-import { ArrowLeft, Heart, PackageSearch, Diamond, ShoppingCart, CreditCard, BadgeDollarSign, Gift, Gem } from 'lucide-react'; 
-import { motion } from "framer-motion";
+import { 
+  ArrowLeft, 
+  Heart, 
+  Search, 
+  ShoppingBag, 
+  Plus, 
+  Filter,
+  Star,
+  Sparkles,
+  Store,
+  Shield,
+  Trash2,
+  MessageCircle,
+  Bot,
+  X,
+  Check,
+  Loader2,
+  ChevronUp,
+  ChevronDown
+} from 'lucide-react';
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+// Import statements for better type handling
+interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+} 
+import { productService, aiService, type Product } from '@/lib/api';
+
+// Component for structured AI messages
+const AssistantMessage = ({ content }: { content: string }) => {
+  const [expanded, setExpanded] = useState(false);
+  
+  // Handle undefined or null content
+  if (!content) {
+    return <div className="p-3 text-sm text-gray-500">No response</div>;
+  }
+  
+  const maxLength = 200;
+  const needsTruncation = content.length > maxLength;
+  
+  const displayContent = needsTruncation && !expanded 
+    ? content.substring(0, maxLength) + '...'
+    : content;
+
+  // Parse content for better structure
+  const formatContent = (text: string) => {
+    // Handle empty text
+    if (!text || !text.trim()) {
+      return <p className="text-sm text-gray-500">Empty response</p>;
+    }
+    
+    // Split by newlines for paragraphs
+    const paragraphs = text.split('\n').filter(p => p.trim());
+    
+    return (
+      <div className="space-y-2">
+        {paragraphs.map((para, idx) => {
+          // Check if it's a list item
+          if (para.trim().startsWith('•') || para.trim().startsWith('-') || para.trim().match(/^\d+\./)) {
+            return (
+              <div key={idx} className="flex gap-2">
+                <span className="text-blue-500 mt-0.5">•</span>
+                <span className="text-sm text-gray-700">{para.replace(/^[•\-\d+\.]\s*/, '')}</span>
+              </div>
+            );
+          }
+          // Regular paragraph
+          return (
+            <p key={idx} className="text-sm text-gray-700 leading-relaxed">
+              {para}
+            </p>
+          );
+        })}
+      </div>
+    );
+  };
+
+  return (
+    <div className="p-3">
+      {formatContent(displayContent)}
+      {needsTruncation && (
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="text-xs text-blue-500 hover:text-blue-600 mt-2 flex items-center gap-1"
+        >
+          {expanded ? (
+            <>
+              Show less
+              <ChevronUp className="w-3 h-3" />
+            </>
+          ) : (
+            <>
+              Show more
+              <ChevronDown className="w-3 h-3" />
+            </>
+          )}
+        </button>
+      )}
+    </div>
+  );
+};
+
+// Quick action buttons for chat
+const QuickActions = ({ onSelect }: { onSelect: (text: string) => void | Promise<void> }) => {
+  const actions = [
+    'Tell me about this product',
+    'Is this available?',
+    'What are similar products?',
+    'Can you recommend alternatives?'
+  ];
+
+  return (
+    <div className="flex flex-wrap gap-2 p-3 border-t border-gray-100">
+      {actions.map((action, idx) => (
+        <button
+          key={idx}
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onSelect(action);
+          }}
+          className="text-xs px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-full transition-colors"
+        >
+          {action}
+        </button>
+      ))}
+    </div>
+  );
+};
 
 const Marketplace = () => {
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedBrand, setSelectedBrand] = useState('');
   const [priceRange, setPriceRange] = useState('');
   const [loadingProducts, setLoadingProducts] = useState(false);
-  const [products, setProducts] = useState<any[]>([]);
-  const [showRecommendations, setShowRecommendations] = useState(false);
+  const [products, setProducts] = useState<Product[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [favoriteCount, setFavoriteCount] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [selectedProductForChat, setSelectedProductForChat] = useState<Product | null>(null);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatInput, setChatInput] = useState('');
+  const [chatLoading, setChatLoading] = useState(false);
+  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   const categories = [
-    { name: "Sneakers & Shoes", value: "shoes", icon: "👟" },
-    { name: "Luxury Watches", value: "watches", icon: "⌚" },
-    { name: "Designer Fragrances", value: "fragrances", icon: "🌸" },
-    { name: "High Fashion", value: "fashion", icon: "👗" },
-    { name: "Premium Jewelry", value: "jewelry", icon: "💎" },
-    { name: "Luxury Cars", value: "cars", icon: "🚗" },
-    { name: "Fine Art", value: "art", icon: "🎨" },
-    { name: "Real Estate", value: "realestate", icon: "🏛️" },
-    { name: "Luxury Travel", value: "travel", icon: "✈️" }
+    { name: "Sneakers & Shoes", value: "shoes", icon: "👟", color: "from-blue-400 to-indigo-400" },
+    { name: "Luxury Watches", value: "watches", icon: "⌚", color: "from-purple-400 to-pink-400" },
+    { name: "Designer Fragrances", value: "fragrances", icon: "🌸", color: "from-pink-400 to-rose-400" },
+    { name: "High Fashion", value: "fashion", icon: "👗", color: "from-indigo-400 to-purple-400" },
+    { name: "Premium Jewelry", value: "jewelry", icon: "💎", color: "from-cyan-400 to-blue-400" },
+    { name: "Designer Bags", value: "bags", icon: "👜", color: "from-amber-400 to-orange-400" },
+    { name: "Fine Art", value: "art", icon: "🎨", color: "from-green-400 to-teal-400" },
+    { name: "Electronics", value: "electronics", icon: "📱", color: "from-slate-400 to-gray-400" }
   ];
 
   const luxuryBrands = [
@@ -43,9 +178,8 @@ const Marketplace = () => {
     { name: "Hermès", value: "hermes" },
     { name: "Louis Vuitton", value: "lv" },
     { name: "Chanel", value: "chanel" },
-    { name: "Tiffany & Co.", value: "tiffany" },
-    { name: "Rolls-Royce", value: "rollsroyce" },
-    { name: "Ferrari", value: "ferrari" }
+    { name: "Gucci", value: "gucci" },
+    { name: "Prada", value: "prada" }
   ];
 
   const priceRanges = [
@@ -54,237 +188,429 @@ const Marketplace = () => {
     { name: "$1K - $5K", value: "1000-5000" },
     { name: "$5K - $10K", value: "5000-10000" },
     { name: "$10K - $50K", value: "10000-50000" },
-    { name: "$50K - $100K", value: "50000-100000" },
-    { name: "$100K - $500K", value: "100000-500000" },
-    { name: "$500K - $1M", value: "500000-1000000" },
-    { name: "Above $1M", value: "1000000+" }
+    { name: "Above $50K", value: "50000+" }
   ];
 
-  // Enhanced products data with shoes and luxury items
-  const luxuryProducts = [
+  // Mock data with proper images array structure
+  const mockProducts: Product[] = [
     {
-      id: 1,
+      id: "1",
       name: "Nike Air Jordan 1 Retro High",
       brand: "Nike",
       price: 170,
-      originalPrice: 200,
-      image: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=500&h=300&fit=crop",
-      category: "shoes",
+      compare_at_price: 200,
       description: "The iconic Air Jordan 1 in its original high-top form",
-      features: ["Premium Leather", "Air Cushioning", "Rubber Outsole"],
-      availability: "In Stock",
-      rating: 4.8,
-      reviews: 1543
+      category_id: "shoes",
+      quantity: 10,
+      status: "active" as const,
+      condition: "new" as const,
+      is_featured: true,
+      images: [
+        {
+          id: "1-1",
+          url: "https://images.unsplash.com/photo-1556906781-9a412961c28c?w=400&h=400&fit=crop",
+          alt_text: "Nike Air Jordan 1 Retro High",
+          position: 1
+        }
+      ],
+      tags: ["Premium Leather", "Air Cushioning", "Rubber Outsole"],
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     },
     {
-      id: 2,
-      name: "Adidas Ultraboost 22",
-      brand: "Adidas",
-      price: 190,
-      originalPrice: 220,
-      image: "https://images.unsplash.com/photo-1595950653106-6c9ebd614d3a?w=500&h=300&fit=crop",
-      category: "shoes",
-      description: "Revolutionary running shoe with responsive Boost midsole",
-      features: ["Boost Technology", "Primeknit Upper", "Continental Rubber"],
-      availability: "Limited Stock",
-      rating: 4.7,
-      reviews: 892
+      id: "2",
+      name: "Rolex Submariner Date",
+      brand: "Rolex",
+      price: 11000,
+      compare_at_price: 12500,
+      description: "The legendary diving watch with timeless design",
+      category_id: "watches",
+      quantity: 3,
+      status: "active" as const,
+      condition: "new" as const,
+      is_featured: true,
+      images: [
+        {
+          id: "2-1",
+          url: "https://images.unsplash.com/photo-1587836374828-4dbafa94cf0e?w=400&h=400&fit=crop",
+          alt_text: "Rolex Submariner Date",
+          position: 1
+        }
+      ],
+      tags: ["Oyster Case", "Cerachrom Bezel", "300m Water Resistant"],
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     },
     {
-      id: 3,
-      name: "Rolls-Royce Phantom VIII",
-      brand: "Rolls-Royce",
-      price: 450000,
-      originalPrice: 500000,
-      image: "https://images.unsplash.com/photo-1563720223185-11003d516935?w=500&h=300&fit=crop",
-      category: "cars",
-      description: "The pinnacle of luxury motoring with bespoke craftsmanship",
-      features: ["Handcrafted Interior", "V12 Engine", "Starlight Headliner"],
-      availability: "Limited Edition",
-      rating: 5.0,
-      reviews: 24
-    },
-    {
-      id: 4,
-      name: "Patek Philippe Nautilus",
-      brand: "Patek Philippe",
-      price: 85000,
-      originalPrice: 90000,
-      image: "https://images.unsplash.com/photo-1523170335258-f5ed11844a49?w=500&h=300&fit=crop",
-      category: "watches",
-      description: "Iconic luxury timepiece with exceptional craftsmanship",
-      features: ["Swiss Movement", "18K Gold", "Water Resistant"],
-      availability: "In Stock",
-      rating: 4.9,
-      reviews: 156
-    },
-    {
-      id: 5,
+      id: "3",
       name: "Hermès Birkin 35",
       brand: "Hermès",
-      price: 35000,
-      originalPrice: 40000,
-      image: "https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=500&h=300&fit=crop",
-      category: "fashion",
+      price: 25000,
+      compare_at_price: 30000,
       description: "The most coveted handbag in the world",
-      features: ["Crocodile Leather", "Hand-Stitched", "Palladium Hardware"],
-      availability: "Waitlist Only",
-      rating: 5.0,
-      reviews: 89
+      category_id: "bags",
+      quantity: 1,
+      status: "active" as const,
+      condition: "new" as const,
+      is_featured: true,
+      images: [
+        {
+          id: "3-1",
+          url: "https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=400&h=400&fit=crop",
+          alt_text: "Hermès Birkin 35",
+          position: 1
+        }
+      ],
+      tags: ["Togo Leather", "Handcrafted", "Palladium Hardware"],
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     },
     {
-      id: 6,
-      name: "Tiffany Yellow Diamond Necklace",
-      brand: "Tiffany & Co.",
-      price: 125000,
-      originalPrice: 150000,
-      image: "https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=500&h=300&fit=crop",
-      category: "jewelry",
-      description: "Exquisite yellow diamond set in platinum",
-      features: ["5 Carat Diamond", "Platinum Setting", "Certified Authentic"],
-      availability: "Exclusive",
-      rating: 5.0,
-      reviews: 45
+      id: "4",
+      name: "Chanel No. 5 Parfum",
+      brand: "Chanel",
+      price: 350,
+      compare_at_price: 400,
+      description: "The timeless fragrance that defines elegance",
+      category_id: "fragrances",
+      quantity: 15,
+      status: "active" as const,
+      condition: "new" as const,
+      is_featured: true,
+      images: [
+        {
+          id: "4-1",
+          url: "https://images.unsplash.com/photo-1541643600914-78b084683601?w=400&h=400&fit=crop",
+          alt_text: "Chanel No. 5 Parfum",
+          position: 1
+        }
+      ],
+      tags: ["Floral", "Aldehydic", "100ml"],
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     }
   ];
 
-  const fetchRecommendations = async () => {
+  // Fetch products from backend
+  const fetchProducts = async () => {
     setLoadingProducts(true);
     try {
-      setTimeout(() => {
-        let filteredProducts = luxuryProducts;
-        
-        if (selectedCategory) {
-          filteredProducts = filteredProducts.filter(p => p.category === selectedCategory);
+      const filters: any = {
+        page: currentPage,
+        limit: 12,
+        status: 'active'
+      };
+
+      if (searchQuery) filters.search = searchQuery;
+      if (selectedCategory && selectedCategory !== 'all') filters.category_id = selectedCategory;
+      if (selectedBrand && selectedBrand !== 'all') filters.brand = selectedBrand;
+
+      if (priceRange && priceRange !== 'all') {
+        const [min, max] = priceRange.split('-');
+        filters.min_price = parseInt(min);
+        if (max && max !== '+') {
+          filters.max_price = parseInt(max);
         }
-        
-        if (selectedBrand) {
-          filteredProducts = filteredProducts.filter(p => 
-            p.brand.toLowerCase().includes(selectedBrand.toLowerCase())
-          );
-        }
-        
-        if (searchQuery) {
-          filteredProducts = filteredProducts.filter(p => 
-            p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            p.description.toLowerCase().includes(searchQuery.toLowerCase())
-          );
-        }
-        
-        setProducts(filteredProducts);
-        setShowRecommendations(true);
-        toast.success("Curated luxury selections just for you!");
-      }, 2000);
+      }
+
+      const response = await productService.getProducts(filters);
+      setProducts(response.items);
+      setTotalPages(response.pages);
     } catch (error) {
-      toast.error("Failed to fetch luxury recommendations.");
-      console.error("❌ Error fetching products", error);
+      console.error('Failed to fetch products:', error);
+      setProducts(mockProducts);
     } finally {
       setLoadingProducts(false);
     }
   };
 
-  const handleAddToWishlist = async (product: any) => {
+  useEffect(() => {
+    const loadInitialProducts = async () => {
+      setLoadingProducts(true);
+      try {
+        // Try to fetch from backend first
+        const response = await productService.getProducts({
+          limit: 12,
+          page: 1
+        });
+        if (response.items && response.items.length > 0) {
+          console.log('Setting products from API:', response.items);
+          setProducts(response.items);
+          setTotalPages(response.pages);
+        } else {
+          // Fall back to mock data if no products from backend
+          console.log('No products from API, using mock data');
+          setProducts(mockProducts);
+        }
+      } catch (error) {
+        console.error('Failed to fetch products:', error);
+        // Fall back to mock data on error
+        setProducts(mockProducts);
+      } finally {
+        setLoadingProducts(false);
+      }
+    };
+
+    loadInitialProducts();
+  }, []);
+
+  useEffect(() => {
+    // Only fetch when filters change (not on initial load)
+    if ((selectedCategory && selectedCategory !== 'all') || 
+        (selectedBrand && selectedBrand !== 'all') || 
+        (priceRange && priceRange !== 'all') || 
+        searchQuery) {
+      fetchProducts();
+    }
+  }, [selectedCategory, selectedBrand, priceRange, searchQuery, currentPage]);
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    setCurrentPage(1);
+    fetchProducts();
+  };
+
+  const handleAddToFavorites = (product: Product) => {
+    setFavoriteCount(prev => prev + 1);
+    toast.success(`${product.name} added to favorites!`);
+  };
+
+  const handleDeleteProduct = async (productId: string) => {
     try {
-      setFavoriteCount(prev => prev + 1);
-      toast.success(`${product.name} added to your luxury wishlist!`);
+      await productService.deleteProduct(productId);
+      toast.success('Product deleted successfully');
+      setDeleteConfirmId(null);
+      fetchProducts(); // Refresh the product list
     } catch (error) {
-      toast.error('Error adding to wishlist');
+      toast.error('Failed to delete product');
+      console.error('Delete error:', error);
+      setDeleteConfirmId(null);
     }
   };
 
-  const handleQuickPurchase = (product: any) => {
-    toast.success(`Initiating luxury concierge service for ${product.name}`);
+  const handleChatWithProduct = (product: Product) => {
+    setSelectedProductForChat(product);
+    setChatOpen(true);
+    // Add initial message about the product
+    setChatMessages([
+      { 
+        role: 'assistant', 
+        content: `Hi! I can help you with information about "${product.name}". What would you like to know?` 
+      }
+    ]);
+  };
+
+  const sendChatMessage = async () => {
+    if (!chatInput.trim() || chatLoading) return;
+    
+    const originalUserMessage = chatInput;
+    setChatInput('');
+    // Show original message to user (without context prefix)
+    setChatMessages(prev => [...prev, { role: 'user', content: originalUserMessage }]);
+    setChatLoading(true);
+    
+    try {
+      // Prepare context with product information and conciseness instructions
+      const context: any = {
+        instructions: "Be concise and direct. Limit responses to 2-3 sentences. Focus only on the specific product being discussed."
+      };
+      
+      // Auto-detect interaction type based on message content
+      let interactionType = 'general_chat';
+      const lowerMessage = originalUserMessage.toLowerCase();
+      
+      if (selectedProductForChat) {
+        // Auto-detect interaction type based on keywords
+        if (lowerMessage.includes('recommend') || lowerMessage.includes('similar') || lowerMessage.includes('alternative')) {
+          interactionType = 'recommendation';
+        } else if (lowerMessage.includes('compare') || lowerMessage.includes('vs') || lowerMessage.includes('versus')) {
+          interactionType = 'comparison';
+        } else if (lowerMessage.includes('available') || lowerMessage.includes('stock') || lowerMessage.includes('quantity')) {
+          interactionType = 'availability_check';
+        } else {
+          interactionType = 'product_inquiry';
+        }
+        
+        context.product = {
+          id: selectedProductForChat.id,
+          name: selectedProductForChat.name,
+          price: selectedProductForChat.price,
+          description: selectedProductForChat.description,
+          category_id: selectedProductForChat.category_id,
+          brand: selectedProductForChat.brand,
+          condition: selectedProductForChat.condition,
+          is_featured: selectedProductForChat.is_featured,
+          quantity: selectedProductForChat.quantity,
+          in_stock: selectedProductForChat.quantity > 0
+        };
+        context.interaction_type = interactionType;
+      }
+      
+      // Send enhanced message to API (with context) but don't show to user
+      const enhancedMessage = selectedProductForChat 
+        ? `[Context: User is asking about "${selectedProductForChat.name}" priced at $${selectedProductForChat.price}] ${originalUserMessage}`
+        : originalUserMessage;
+      
+      // Call the actual AI service
+      const response = await aiService.sendMessage({
+        message: enhancedMessage,
+        conversation_id: conversationId || undefined,
+        context: context,
+        interaction_type: interactionType
+      } as any);
+      
+      // Update conversation ID if this is the first message
+      if (!conversationId && response.conversation_id) {
+        setConversationId(response.conversation_id);
+      }
+      
+      // Add AI response to messages
+      console.log('Full AI Response:', response); // Debug log
+      
+      // Extract the message from the response
+      const aiContent = response?.message || response?.response || 'No response received';
+      
+      setChatMessages(prev => [...prev, { 
+        role: 'assistant', 
+        content: aiContent
+      }]);
+      
+    } catch (error: any) {
+      console.error('Chat error:', error);
+      toast.error('Failed to send message');
+      setChatMessages(prev => [...prev, { 
+        role: 'assistant', 
+        content: 'Sorry, I encountered an error. Please try again.' 
+      }]);
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
+  const clearFilters = () => {
+    setSelectedCategory('all');
+    setSelectedBrand('all');
+    setPriceRange('all');
+    setSearchQuery('');
+    setCurrentPage(1);
+  };
+
+  const getDiscountPercentage = (price: number, comparePrice?: number) => {
+    if (!comparePrice || comparePrice <= price) return 0;
+    return Math.round(((comparePrice - price) / comparePrice) * 100);
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900">
-      {/* Premium Header */}
-      <header className="container mx-auto px-4 py-6 border-b border-white/10">
-        <div className="flex justify-between items-center">
-          <Link to="/" className="flex items-center space-x-2 text-white hover:text-blue-300 transition-colors">
-            <ArrowLeft className="w-5 h-5" />
-            <span className="font-medium">Return Home</span>
-          </Link>
-
-          <div className="flex items-center space-x-6">
-            <div className="flex items-center space-x-2 text-blue-300">
-              <Diamond className="w-5 h-5" />
-              <span className="font-medium">Premium Member</span>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-100 to-purple-200">
+      {/* Header */}
+      <header className="bg-white/80 backdrop-blur-xl shadow-sm sticky top-0 z-40">
+        <div className="container mx-auto px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <Link to="/">
+                <Button variant="ghost" size="icon" className="hover:bg-blue-50">
+                  <ArrowLeft className="h-5 w-5" />
+                </Button>
+              </Link>
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-xl flex items-center justify-center shadow-md">
+                  <Store className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-2xl font-bold text-gray-800">Luxury Marketplace</h1>
+                  <p className="text-sm text-gray-600">Discover authentic luxury</p>
+                </div>
+              </div>
             </div>
             
-            <Link to="/wishlist" className="flex items-center space-x-2 text-white hover:text-blue-400 transition relative">
-              <Heart className="w-5 h-5" />
-              <span>Wishlist</span>
-              {favoriteCount > 0 && (
-                <span className="absolute -top-2 -right-2 bg-blue-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                  {favoriteCount}
-                </span>
-              )}
-            </Link>
+            <div className="flex items-center space-x-3">
+              <Link to="/product/create">
+                <Button className="bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white shadow-md">
+                  <Plus className="mr-2 h-4 w-4" />
+                  <span className="hidden sm:inline">Sell Product</span>
+                </Button>
+              </Link>
+              <Link to="/favorites">
+                <Button variant="outline" className="relative border-gray-300 hover:bg-gray-50">
+                  <Heart className="mr-2 h-4 w-4" />
+                  <span className="hidden sm:inline">Favorites</span>
+                  {favoriteCount > 0 && (
+                    <span className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full h-5 w-5 flex items-center justify-center text-xs">
+                      {favoriteCount}
+                    </span>
+                  )}
+                </Button>
+              </Link>
+              <Button variant="outline" className="border-gray-300 hover:bg-gray-50">
+                <ShoppingBag className="mr-2 h-4 w-4" />
+                <span className="hidden sm:inline">Cart</span>
+              </Button>
+              
+              {/* Mobile Filter Toggle */}
+              <Button 
+                variant="outline" 
+                size="icon"
+                className="lg:hidden"
+                onClick={() => setMobileFiltersOpen(!mobileFiltersOpen)}
+              >
+                <Filter className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </div>
       </header>
 
-      {/* Hero Section */}
-      <section className="container mx-auto px-4 py-16 text-center">
-        <motion.div 
-          initial={{ y: -30, opacity: 0 }} 
-          animate={{ y: 0, opacity: 1 }} 
-          transition={{ duration: 1 }}
-          className="mb-8"
-        >
-          <div className="flex justify-center items-center space-x-4 mb-6">
-            <Diamond className="w-12 h-12 text-blue-400" />
-            <Gem className="w-16 h-16 text-blue-300" />
-            <Diamond className="w-12 h-12 text-blue-400" />
-          </div>
-        </motion.div>
-        
-        <h1 className="text-6xl lg:text-8xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-400 to-blue-500 mb-6">
-          LUXURY MARKETPLACE
-        </h1>
-        <p className="text-xl text-gray-300 max-w-2xl mx-auto">
-          Discover the world's most exclusive luxury goods, curated by experts and available to discerning collectors
-        </p>
-      </section>
+      <div className="container mx-auto px-6 py-8">
+        <div className="flex flex-col lg:flex-row gap-8">
+          {/* Filters Sidebar */}
+          <aside className={`lg:w-64 space-y-6 ${mobileFiltersOpen ? 'block' : 'hidden lg:block'}`}>
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-xl p-6"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold text-gray-800">Filters</h3>
+                {(selectedCategory !== 'all' || selectedBrand !== 'all' || priceRange !== 'all') && (
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={clearFilters}
+                    className="text-blue-600 hover:text-blue-700"
+                  >
+                    Clear all
+                  </Button>
+                )}
+              </div>
 
-      {/* Filters & Search */}
-      <section className="container mx-auto px-4 pb-12">
-        <Card className="max-w-6xl mx-auto bg-white/5 backdrop-blur-xl border-white/10">
-          <CardHeader className="text-center border-b border-white/10">
-            <CardTitle className="text-3xl text-white mb-2 flex items-center justify-center space-x-3">
-              <Gift className="w-8 h-8 text-blue-400" />
-              <span>Luxury Concierge</span>
-            </CardTitle>
-            <p className="text-gray-300">Tell us your preferences and we'll curate the perfect selection</p>
-          </CardHeader>
+              {/* Search */}
+              <form onSubmit={handleSearch} className="mb-6">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                  <Input
+                    type="text"
+                    placeholder="Search products..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10 bg-gray-50 border-gray-200"
+                  />
+                </div>
+              </form>
 
-          <CardContent className="p-8">
-            {/* Search Bar */}
-            <div className="mb-8">
-              <Label className="text-white font-medium mb-3 block">Search Luxury Items</Label>
-              <Input
-                placeholder="Search for luxury watches, jewelry, cars, shoes..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 text-lg py-3"
-              />
-            </div>
-
-            {/* Filter Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-              <div className="space-y-3">
-                <Label className="text-white font-medium">Category</Label>
+              {/* Category Filter */}
+              <div className="space-y-2">
+                <Label className="text-gray-700">Category</Label>
                 <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                  <SelectTrigger className="bg-white/10 border-white/20 text-white">
-                    <SelectValue placeholder="Select category" />
+                  <SelectTrigger className="bg-gray-50 border-gray-200">
+                    <SelectValue placeholder="All categories" />
                   </SelectTrigger>
-                  <SelectContent className="bg-slate-800 border-white/20">
-                    {categories.map(cat => (
-                      <SelectItem key={cat.value} value={cat.value} className="text-white hover:bg-white/10">
-                        <span className="flex items-center space-x-2">
-                          <span>{cat.icon}</span>
-                          <span>{cat.name}</span>
+                  <SelectContent>
+                    <SelectItem value="all">All categories</SelectItem>
+                    {categories.map((category) => (
+                      <SelectItem key={category.value} value={category.value}>
+                        <span className="flex items-center gap-2">
+                          <span>{category.icon}</span>
+                          <span>{category.name}</span>
                         </span>
                       </SelectItem>
                     ))}
@@ -292,15 +618,17 @@ const Marketplace = () => {
                 </Select>
               </div>
 
-              <div className="space-y-3">
-                <Label className="text-white font-medium">Luxury Brand</Label>
+              {/* Brand Filter */}
+              <div className="space-y-2">
+                <Label className="text-gray-700">Brand</Label>
                 <Select value={selectedBrand} onValueChange={setSelectedBrand}>
-                  <SelectTrigger className="bg-white/10 border-white/20 text-white">
-                    <SelectValue placeholder="Select brand" />
+                  <SelectTrigger className="bg-gray-50 border-gray-200">
+                    <SelectValue placeholder="All brands" />
                   </SelectTrigger>
-                  <SelectContent className="bg-slate-800 border-white/20">
-                    {luxuryBrands.map(brand => (
-                      <SelectItem key={brand.value} value={brand.value} className="text-white hover:bg-white/10">
+                  <SelectContent>
+                    <SelectItem value="all">All brands</SelectItem>
+                    {luxuryBrands.map((brand) => (
+                      <SelectItem key={brand.value} value={brand.value}>
                         {brand.name}
                       </SelectItem>
                     ))}
@@ -308,185 +636,499 @@ const Marketplace = () => {
                 </Select>
               </div>
 
-              <div className="space-y-3">
-                <Label className="text-white font-medium">Price Range</Label>
+              {/* Price Range Filter */}
+              <div className="space-y-2">
+                <Label className="text-gray-700">Price Range</Label>
                 <Select value={priceRange} onValueChange={setPriceRange}>
-                  <SelectTrigger className="bg-white/10 border-white/20 text-white">
-                    <SelectValue placeholder="Select range" />
+                  <SelectTrigger className="bg-gray-50 border-gray-200">
+                    <SelectValue placeholder="Any price" />
                   </SelectTrigger>
-                  <SelectContent className="bg-slate-800 border-white/20">
-                    {priceRanges.map(range => (
-                      <SelectItem key={range.value} value={range.value} className="text-white hover:bg-white/10">
+                  <SelectContent>
+                    <SelectItem value="all">Any price</SelectItem>
+                    {priceRanges.map((range) => (
+                      <SelectItem key={range.value} value={range.value}>
                         {range.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
+            </motion.div>
+
+            {/* Quick Stats */}
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.1 }}
+              className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-6 border border-blue-200"
+            >
+              <div className="flex items-center gap-2 mb-3">
+                <Sparkles className="w-5 h-5 text-blue-600" />
+                <h3 className="font-semibold text-gray-800">Market Insights</h3>
+              </div>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">Active Listings</span>
+                  <span className="font-semibold text-gray-800">{products.length}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">Avg. Discount</span>
+                  <span className="font-semibold text-green-600">15%</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">New Today</span>
+                  <span className="font-semibold text-blue-600">12</span>
+                </div>
+              </div>
+            </motion.div>
+          </aside>
+
+          {/* Products Grid */}
+          <div className="flex-1">
+            {/* Results Header */}
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-800">
+                  {selectedCategory ? categories.find(c => c.value === selectedCategory)?.name : 'All Products'}
+                </h2>
+                <p className="text-gray-600 mt-1">
+                  {products.length} {products.length === 1 ? 'result' : 'results'} found
+                </p>
+              </div>
+              
+              <Select defaultValue="featured">
+                <SelectTrigger className="w-[180px] bg-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="featured">Featured</SelectItem>
+                  <SelectItem value="price-low">Price: Low to High</SelectItem>
+                  <SelectItem value="price-high">Price: High to Low</SelectItem>
+                  <SelectItem value="newest">Newest First</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
-            {/* Action Button */}
-            <Button
-              onClick={fetchRecommendations}
-              disabled={loadingProducts}
-              className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white py-4 text-lg font-medium rounded-xl"
-            >
-              {loadingProducts ? (
-                <div className="flex items-center space-x-3 justify-center">
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
-                  <span>Curating luxury selections...</span>
-                </div>
-              ) : (
-                <div className="flex items-center space-x-3">
-                  <PackageSearch className="w-6 h-6" />
-                  <span>Discover Luxury Collections</span>
-                </div>
-              )}
-            </Button>
-          </CardContent>
-        </Card>
-      </section>
-
-      {/* Luxury Product Grid */}
-      {showRecommendations && (
-        <section className="container mx-auto px-4 pb-20">
-          <div className="max-w-7xl mx-auto">
-            <Card className="bg-white/5 backdrop-blur-xl border-white/10">
-              <CardHeader className="border-b border-white/10">
-                <CardTitle className="text-white text-2xl flex items-center space-x-3">
-                  <Gem className="w-6 h-6 text-blue-400" />
-                  <span>Curated Luxury Selection</span>
-                </CardTitle>
-                <p className="text-gray-300">
-                  {products.length} exclusive items matched to your preferences
-                </p>
-              </CardHeader>
-              
-              <CardContent className="p-8">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                  {products.map((product) => (
-                    <motion.div
-                      key={product.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.1 }}
-                    >
-                      <Link to={`/product/${product.id}`}>
-                        <Card className="bg-white/10 backdrop-blur-md border-white/20 overflow-hidden hover:scale-[1.02] transition-all duration-300 group cursor-pointer">
-                          <div className="relative">
+            {/* Products Grid */}
+            {loadingProducts ? (
+              <div className="flex justify-center items-center h-64">
+                <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
+              </div>
+            ) : products.length === 0 ? (
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="text-center py-16 bg-white/60 backdrop-blur-xl rounded-2xl"
+              >
+                <Search className="h-16 w-16 mx-auto text-gray-400 mb-4" />
+                <h3 className="text-xl font-semibold text-gray-700 mb-2">No products found</h3>
+                <p className="text-gray-500">Try adjusting your filters or search query</p>
+              </motion.div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {products.map((product, index) => (
+                  <motion.div
+                    key={product.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.05 }}
+                    whileHover={{ y: -5 }}
+                  >
+                    <Card className="bg-white/80 backdrop-blur-xl border-white/40 shadow-xl hover:shadow-2xl transition-all duration-300 overflow-hidden h-full">
+                      <div className="relative">
+                        {/* Product Image */}
+                        <div className="relative h-64 bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden">
+                          {product.images && product.images[0] ? (
                             <img 
-                              src={product.image} 
-                              alt={product.name} 
-                              className="w-full h-56 object-cover group-hover:scale-105 transition-transform duration-300" 
+                              src={product.images[0].url} 
+                              alt={product.images[0].alt_text || product.name}
+                              className="w-full h-full object-cover"
                             />
-                            <div className="absolute top-4 right-4 bg-blue-600 text-white px-3 py-1 rounded-full text-sm font-medium">
-                              {product.availability}
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <ShoppingBag className="h-20 w-20 text-gray-400" />
                             </div>
-                            {product.originalPrice > product.price && (
-                              <div className="absolute top-4 left-4 bg-green-600 text-white px-3 py-1 rounded-full text-sm font-medium">
-                                Save ${(product.originalPrice - product.price).toLocaleString()}
+                          )}
+                          
+                          {/* Discount Badge */}
+                          {product.compare_at_price && product.compare_at_price > product.price && (
+                            <div className="absolute top-3 left-3">
+                              <Badge className="bg-red-500 text-white border-0">
+                                -{getDiscountPercentage(product.price, product.compare_at_price)}%
+                              </Badge>
+                            </div>
+                          )}
+                          
+                          {/* Featured Badge */}
+                          {product.is_featured && (
+                            <div className="absolute top-3 right-3">
+                              <Badge className="bg-gradient-to-r from-amber-400 to-orange-400 text-white border-0">
+                                <Star className="w-3 h-3 mr-1" />
+                                Featured
+                              </Badge>
+                            </div>
+                          )}
+
+                          {/* Quick Actions */}
+                          <div className="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Button 
+                              size="icon"
+                              variant="secondary"
+                              className="bg-white/90 backdrop-blur-sm"
+                              onClick={() => handleAddToFavorites(product)}
+                            >
+                              <Heart className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+
+                        <CardContent className="p-5">
+                          {/* Brand & Category */}
+                          <div className="flex items-center gap-2 mb-2">
+                            {product.brand && (
+                              <Badge variant="secondary" className="text-xs">
+                                {product.brand}
+                              </Badge>
+                            )}
+                            <Badge variant="outline" className="text-xs">
+                              {categories.find(c => c.value === product.category_id)?.name || 'General'}
+                            </Badge>
+                          </div>
+
+                          {/* Product Name */}
+                          <h3 className="font-semibold text-gray-800 mb-2 line-clamp-2 min-h-[3rem]">
+                            {product.name}
+                          </h3>
+
+                          {/* Price */}
+                          <div className="flex items-baseline gap-2 mb-3">
+                            <span className="text-2xl font-bold text-gray-900">
+                              ${product.price.toLocaleString()}
+                            </span>
+                            {product.compare_at_price && product.compare_at_price > product.price && (
+                              <span className="text-sm text-gray-500 line-through">
+                                ${product.compare_at_price.toLocaleString()}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Stock Status */}
+                          <div className="flex items-center gap-4 mb-4 text-sm">
+                            <div className="flex items-center gap-1">
+                              {product.quantity > 0 ? (
+                                <>
+                                  <div className="w-2 h-2 bg-green-500 rounded-full" />
+                                  <span className="text-gray-600">In Stock</span>
+                                </>
+                              ) : (
+                                <>
+                                  <div className="w-2 h-2 bg-red-500 rounded-full" />
+                                  <span className="text-gray-600">Out of Stock</span>
+                                </>
+                              )}
+                            </div>
+                            {product.condition && (
+                              <div className="flex items-center gap-1">
+                                <Shield className="w-3 h-3 text-blue-600" />
+                                <span className="text-gray-600 capitalize">{product.condition}</span>
                               </div>
                             )}
                           </div>
-                          
-                          <CardContent className="p-6 space-y-4">
-                            <div>
-                              <p className="text-blue-400 text-sm font-medium">{product.brand}</p>
-                              <h3 className="text-white text-xl font-bold">{product.name}</h3>
-                              <p className="text-gray-300 text-sm mt-2">{product.description}</p>
-                            </div>
 
-                            <div className="flex items-center space-x-1">
-                              {[...Array(5)].map((_, i) => (
-                                <span key={i} className={`text-sm ${i < Math.floor(product.rating) ? 'text-yellow-400' : 'text-gray-500'}`}>
-                                  ★
-                                </span>
-                              ))}
-                              <span className="text-gray-400 text-sm ml-2">({product.reviews} reviews)</span>
-                            </div>
-
-                            <div className="space-y-2">
-                              <div className="flex items-center justify-between">
-                                <span className="text-2xl font-bold text-white">
-                                  ${product.price.toLocaleString()}
-                                </span>
-                                {product.originalPrice > product.price && (
-                                  <span className="text-gray-400 line-through text-lg">
-                                    ${product.originalPrice.toLocaleString()}
-                                  </span>
-                                )}
+                          {/* Action Buttons */}
+                          <div className="flex gap-2">
+                            <Link to={`/product/${product.id}`} className="flex-1">
+                              <Button className="w-full bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white" size="sm">
+                                View
+                              </Button>
+                            </Link>
+                            <Button 
+                              size="icon"
+                              variant="outline"
+                              onClick={() => handleChatWithProduct(product)}
+                              className="hover:bg-purple-50 hover:text-purple-600"
+                              title="Chat about this product"
+                            >
+                              <MessageCircle className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              size="icon"
+                              variant="outline"
+                              onClick={() => handleAddToFavorites(product)}
+                              className="hover:bg-red-50 hover:text-red-600"
+                            >
+                              <Heart className="h-4 w-4" />
+                            </Button>
+                            {deleteConfirmId === product.id ? (
+                              <div className="flex gap-1">
+                                <Button 
+                                  size="icon"
+                                  variant="ghost"
+                                  onClick={() => handleDeleteProduct(product.id)}
+                                  className="bg-red-50 text-red-600 hover:bg-red-100 h-8 w-8"
+                                  title="Confirm delete"
+                                >
+                                  <Check className="h-3 w-3" />
+                                </Button>
+                                <Button 
+                                  size="icon"
+                                  variant="ghost"
+                                  onClick={() => setDeleteConfirmId(null)}
+                                  className="hover:bg-gray-100 h-8 w-8"
+                                  title="Cancel"
+                                >
+                                  <X className="h-3 w-3" />
+                                </Button>
                               </div>
-                            </div>
-
-                            <div className="flex flex-wrap gap-2 mb-4">
-                              {product.features.map((feature: string, index: number) => (
-                                <span key={index} className="bg-blue-600/20 text-blue-300 px-2 py-1 rounded-md text-xs">
-                                  {feature}
-                                </span>
-                              ))}
-                            </div>
-                          </CardContent>
-                        </Card>
-                      </Link>
-                      
-                      {/* Action buttons outside the link */}
-                      <div className="flex space-x-3 mt-4 px-6">
-                        <Button 
-                          onClick={(e) => {
-                            e.preventDefault();
-                            handleAddToWishlist(product);
-                          }}
-                          variant="outline"
-                          className="flex-1 border-white/20 text-white hover:bg-white/10"
-                        >
-                          <Heart className="w-4 h-4 mr-2" />
-                          Wishlist
-                        </Button>
-                        
-                        <Button 
-                          onClick={(e) => {
-                            e.preventDefault();
-                            handleQuickPurchase(product);
-                          }}
-                          className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
-                        >
-                          <CreditCard className="w-4 h-4 mr-2" />
-                          Inquire
-                        </Button>
+                            ) : (
+                              <Button 
+                                size="icon"
+                                variant="outline"
+                                onClick={() => setDeleteConfirmId(product.id)}
+                                className="hover:bg-red-50 hover:text-red-600"
+                                title="Delete product"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </CardContent>
                       </div>
-                    </motion.div>
+                    </Card>
+                  </motion.div>
+                ))}
+              </div>
+            )}
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="mt-8 flex justify-center gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                >
+                  Previous
+                </Button>
+                <div className="flex items-center gap-2">
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => (
+                    <Button
+                      key={i + 1}
+                      variant={currentPage === i + 1 ? "default" : "outline"}
+                      size="icon"
+                      onClick={() => setCurrentPage(i + 1)}
+                    >
+                      {i + 1}
+                    </Button>
                   ))}
                 </div>
-              </CardContent>
-            </Card>
-          </div>
-        </section>
-      )}
-
-      {/* Luxury Services Footer */}
-      <footer className="border-t border-white/10 bg-black/20 backdrop-blur-xl">
-        <div className="container mx-auto px-4 py-12">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
-            <div className="space-y-3">
-              <BadgeDollarSign className="w-12 h-12 text-blue-400 mx-auto" />
-              <h3 className="text-white text-xl font-bold">Concierge Service</h3>
-              <p className="text-gray-300">Personal luxury shopping assistant available 24/7</p>
-            </div>
-            
-            <div className="space-y-3">
-              <CreditCard className="w-12 h-12 text-blue-400 mx-auto" />
-              <h3 className="text-white text-xl font-bold">Flexible Payment</h3>
-              <p className="text-gray-300">Private financing and payment plans available</p>
-            </div>
-            
-            <div className="space-y-3">
-              <Diamond className="w-12 h-12 text-blue-400 mx-auto" />
-              <h3 className="text-white text-xl font-bold">Authentication</h3>
-              <p className="text-gray-300">Every item verified by luxury goods experts</p>
-            </div>
+                <Button
+                  variant="outline"
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                >
+                  Next
+                </Button>
+              </div>
+            )}
           </div>
         </div>
-      </footer>
+      </div>
+
+      {/* Floating AI Chat Button */}
+      <motion.button
+        type="button"
+        initial={{ scale: 0 }}
+        animate={{ scale: 1 }}
+        whileHover={{ scale: 1.1 }}
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setChatOpen(!chatOpen);
+        }}
+        className="fixed bottom-6 right-6 z-50 bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-full p-4 shadow-lg hover:shadow-xl transition-all"
+      >
+        <Bot className="h-6 w-6" />
+      </motion.button>
+
+      {/* AI Chat Popup */}
+      {chatOpen && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="fixed bottom-24 right-6 z-50 w-96 max-w-[calc(100vw-3rem)] bg-white rounded-2xl shadow-2xl overflow-hidden"
+        >
+          {/* Chat Header */}
+          <div className="bg-gradient-to-r from-purple-500 to-indigo-500 text-white p-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Bot className="h-6 w-6" />
+              <div>
+                <h3 className="font-semibold">AI Shopping Assistant</h3>
+                {selectedProductForChat && (
+                  <p className="text-xs opacity-90">Discussing: {selectedProductForChat.name}</p>
+                )}
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                setChatOpen(false);
+                setSelectedProductForChat(null);
+                setChatMessages([]);
+              }}
+              className="hover:bg-white/20 rounded-full p-1"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+
+          {/* Chat Messages */}
+          <div className="h-96 overflow-y-auto p-4 space-y-4 bg-gray-50">
+            {chatMessages.length === 0 ? (
+              <div className="text-center text-gray-500 py-8">
+                <Bot className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                <p>Hi! I'm your AI shopping assistant.</p>
+                <p className="text-sm mt-2">Ask me anything about our products!</p>
+              </div>
+            ) : (
+              <>
+                {chatMessages.map((msg, idx) => (
+                  <motion.div
+                    key={idx}
+                    initial={{ opacity: 0, x: msg.role === 'user' ? 20 : -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                  >
+                    <div className={`max-w-[80%] rounded-xl ${
+                      msg.role === 'user' 
+                        ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white p-3' 
+                        : 'bg-white shadow-md'
+                    }`}>
+                      {msg.role === 'assistant' ? (
+                        <AssistantMessage content={msg.content} />
+                      ) : (
+                        <p className="text-sm">{msg.content}</p>
+                      )}
+                    </div>
+                  </motion.div>
+                ))}
+                {chatLoading && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="flex justify-start"
+                  >
+                    <div className="bg-white text-gray-800 shadow-md p-3 rounded-xl">
+                      <div className="flex space-x-2">
+                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </>
+            )}
+          </div>
+
+          {/* Selected Product Display */}
+          {selectedProductForChat && (
+            <div className="p-3 bg-white border-t flex items-center gap-3">
+              <div className="w-16 h-16 bg-gray-100 rounded-lg overflow-hidden">
+                {selectedProductForChat.images && selectedProductForChat.images[0] ? (
+                  <img 
+                    src={selectedProductForChat.images[0].url} 
+                    alt={selectedProductForChat.name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <ShoppingBag className="h-6 w-6 text-gray-400" />
+                  </div>
+                )}
+              </div>
+              <div className="flex-1">
+                <p className="font-semibold text-sm">{selectedProductForChat.name}</p>
+                <p className="text-lg font-bold text-blue-600">${selectedProductForChat.price}</p>
+              </div>
+              <button
+                onClick={() => setSelectedProductForChat(null)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          )}
+
+          {/* Quick Actions */}
+          {chatMessages.length === 0 && !selectedProductForChat && (
+            <QuickActions onSelect={async (text) => {
+              // Set the input and send directly
+              setChatInput(text);
+              
+              // Send the message directly
+              const userMessage = text;
+              setChatMessages(prev => [...prev, { role: 'user', content: userMessage }]);
+              setChatLoading(true);
+              
+              try {
+                const response = await aiService.sendMessage({
+                  message: userMessage,
+                  conversation_id: conversationId || undefined
+                });
+                
+                if (!conversationId && response.conversation_id) {
+                  setConversationId(response.conversation_id);
+                }
+                
+                setChatMessages(prev => [...prev, { 
+                  role: 'assistant', 
+                  content: response.message || response.response || 'No response received'
+                }]);
+              } catch (error) {
+                console.error('Chat error:', error);
+                setChatMessages(prev => [...prev, { 
+                  role: 'assistant', 
+                  content: 'Sorry, I encountered an error. Please try again.' 
+                }]);
+              } finally {
+                setChatLoading(false);
+                setChatInput('');
+              }
+            }} />
+          )}
+
+          {/* Chat Input */}
+          <div className="p-4 bg-white border-t">
+            <form onSubmit={(e) => { 
+              e.preventDefault(); 
+              e.stopPropagation();
+              sendChatMessage(); 
+              return false;
+            }} className="flex gap-2">
+              <Input
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                placeholder="Type your message..."
+                className="flex-1"
+              />
+              <Button 
+                type="submit"
+                disabled={chatLoading || !chatInput.trim()}
+                className="bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white disabled:opacity-50"
+              >
+                {chatLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  'Send'
+                )}
+              </Button>
+            </form>
+          </div>
+        </motion.div>
+      )}
     </div>
   );
 };

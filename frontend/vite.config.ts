@@ -20,6 +20,9 @@ export default defineConfig(({ mode }) => {
         '@': path.resolve(__dirname, './src'),
       },
     },
+    css: {
+      postcss: './postcss.config.js'
+    },
     // define silinib, çünki Vite özü VITE_* dəyişənlərini idarə edir
   }
 })

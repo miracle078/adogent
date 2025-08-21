@@ -14,8 +14,11 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
+# Only ignore Python lib directories, not frontend lib
+/lib/
+/lib64/
+backend/lib/
+backend/lib64/
 parts/
 sdist/
 var/
@@ -60,6 +63,11 @@ cover/
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
+
+# Logs
+logs/
+backend/logs/
+*.log
 
 # Flask stuff:
 instance/

@@ -88,7 +88,7 @@ def decode_jwt_token(token: str, secret_key: str, algorithm: str) -> dict:
             payload["jti"] = payload.pop("i")
             
         return payload
-    except jwt.PyJWTError as e:
+    except jwt.JWTError as e:
         raise AuthenticationError(f"Invalid token: {str(e)}")
 
 
