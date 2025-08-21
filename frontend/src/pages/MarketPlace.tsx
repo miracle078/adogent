@@ -403,14 +403,17 @@ const Marketplace = () => {
   const sendChatMessage = async () => {
     if (!chatInput.trim() || chatLoading) return;
     
-    const userMessage = chatInput;
+    let userMessage = chatInput;
     setChatInput('');
     setChatMessages(prev => [...prev, { role: 'user', content: userMessage }]);
     setChatLoading(true);
     
     try {
-      // Prepare context with product information if available
-      const context: any = {};
+      // Prepare context with product information and conciseness instructions
+      const context: any = {
+        instructions: "Be concise and direct. Limit responses to 2-3 sentences. Focus only on the specific product being discussed."
+      };
+      
       if (selectedProductForChat) {
         context.product = {
           id: selectedProductForChat.id,
@@ -420,16 +423,21 @@ const Marketplace = () => {
           category_id: selectedProductForChat.category_id,
           brand: selectedProductForChat.brand,
           condition: selectedProductForChat.condition,
-          is_featured: selectedProductForChat.is_featured
+          is_featured: selectedProductForChat.is_featured,
+          quantity: selectedProductForChat.quantity,
+          in_stock: selectedProductForChat.quantity > 0
         };
-        context.interaction_type = 'product_details';
+        context.interaction_type = 'product_inquiry';
+        
+        // Enhance the user message with product context
+        userMessage = `[Context: User is asking about "${selectedProductForChat.name}" priced at $${selectedProductForChat.price}] ${userMessage}`;
       }
       
       // Call the actual AI service
       const response = await aiService.sendMessage({
         message: userMessage,
         conversation_id: conversationId || undefined,
-        context: Object.keys(context).length > 0 ? context : undefined,
+        context: context,
         interaction_type: context.interaction_type || 'general_chat'
       } as any);
       
@@ -440,7 +448,7 @@ const Marketplace = () => {
       
       // Add AI response to messages
       console.log('AI Response:', response); // Debug log
-      const aiContent = response?.response || response?.message || response?.content || 'No response received';
+      const aiContent = response?.response || 'No response received';
       setChatMessages(prev => [...prev, { 
         role: 'assistant', 
         content: aiContent
