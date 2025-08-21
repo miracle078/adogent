@@ -403,9 +403,10 @@ const Marketplace = () => {
   const sendChatMessage = async () => {
     if (!chatInput.trim() || chatLoading) return;
     
-    let userMessage = chatInput;
+    const originalUserMessage = chatInput;
     setChatInput('');
-    setChatMessages(prev => [...prev, { role: 'user', content: userMessage }]);
+    // Show original message to user (without context prefix)
+    setChatMessages(prev => [...prev, { role: 'user', content: originalUserMessage }]);
     setChatLoading(true);
     
     try {
@@ -414,7 +415,22 @@ const Marketplace = () => {
         instructions: "Be concise and direct. Limit responses to 2-3 sentences. Focus only on the specific product being discussed."
       };
       
+      // Auto-detect interaction type based on message content
+      let interactionType = 'general_chat';
+      const lowerMessage = originalUserMessage.toLowerCase();
+      
       if (selectedProductForChat) {
+        // Auto-detect interaction type based on keywords
+        if (lowerMessage.includes('recommend') || lowerMessage.includes('similar') || lowerMessage.includes('alternative')) {
+          interactionType = 'recommendation';
+        } else if (lowerMessage.includes('compare') || lowerMessage.includes('vs') || lowerMessage.includes('versus')) {
+          interactionType = 'comparison';
+        } else if (lowerMessage.includes('available') || lowerMessage.includes('stock') || lowerMessage.includes('quantity')) {
+          interactionType = 'availability_check';
+        } else {
+          interactionType = 'product_inquiry';
+        }
+        
         context.product = {
           id: selectedProductForChat.id,
           name: selectedProductForChat.name,
@@ -427,18 +443,20 @@ const Marketplace = () => {
           quantity: selectedProductForChat.quantity,
           in_stock: selectedProductForChat.quantity > 0
         };
-        context.interaction_type = 'product_inquiry';
-        
-        // Enhance the user message with product context
-        userMessage = `[Context: User is asking about "${selectedProductForChat.name}" priced at $${selectedProductForChat.price}] ${userMessage}`;
+        context.interaction_type = interactionType;
       }
+      
+      // Send enhanced message to API (with context) but don't show to user
+      const enhancedMessage = selectedProductForChat 
+        ? `[Context: User is asking about "${selectedProductForChat.name}" priced at $${selectedProductForChat.price}] ${originalUserMessage}`
+        : originalUserMessage;
       
       // Call the actual AI service
       const response = await aiService.sendMessage({
-        message: userMessage,
+        message: enhancedMessage,
         conversation_id: conversationId || undefined,
         context: context,
-        interaction_type: context.interaction_type || 'general_chat'
+        interaction_type: interactionType
       } as any);
       
       // Update conversation ID if this is the first message
@@ -447,8 +465,11 @@ const Marketplace = () => {
       }
       
       // Add AI response to messages
-      console.log('AI Response:', response); // Debug log
-      const aiContent = response?.response || 'No response received';
+      console.log('Full AI Response:', response); // Debug log
+      
+      // Extract the message from the response
+      const aiContent = response?.message || response?.response || 'No response received';
+      
       setChatMessages(prev => [...prev, { 
         role: 'assistant', 
         content: aiContent
@@ -1061,7 +1082,7 @@ const Marketplace = () => {
                 
                 setChatMessages(prev => [...prev, { 
                   role: 'assistant', 
-                  content: response.response
+                  content: response.message || response.response || 'No response received'
                 }]);
               } catch (error) {
                 console.error('Chat error:', error);

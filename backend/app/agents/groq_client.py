@@ -114,6 +114,11 @@ class GroqClient(BaseAgent):
         
         # Add system message based on interaction type
         system_prompt = self._get_system_prompt(request.interaction_type)
+        
+        # Add context instructions if provided
+        if hasattr(request, 'context') and request.context and 'instructions' in request.context:
+            system_prompt = f"{system_prompt}\n\nAdditional Instructions: {request.context['instructions']}"
+        
         messages.append(SystemMessage(content=system_prompt))
         
         # Add conversation history
@@ -133,6 +138,15 @@ class GroqClient(BaseAgent):
     def _get_system_prompt(self, interaction_type: str) -> str:
         """Get system prompt based on interaction type."""
         prompts = {
+            "product_inquiry": """You are ADOGENT, a concise product information assistant.
+                CRITICAL: Keep ALL responses to 2-3 sentences maximum. Be direct and specific.
+                - Answer ONLY about the specific product mentioned
+                - Focus on the most relevant detail for the question
+                - Do NOT provide lists or multiple paragraphs
+                - Do NOT repeat product name or price (user already knows)
+                Example: "This camera features a 45MP sensor ideal for professional photography. The 8K video capability sets it apart from competitors."
+                """,
+                
             "product_recommendation": """You are ADOGENT, a luxury e-commerce personal shopping assistant.
                 Your primary role is to understand customer preferences deeply and recommend ideal products by considering style, budget, occasion, and personal taste.
                 - Start interactions by gathering relevant customer preferences (favorite brands, preferred styles, budget, occasion, condition, sizes, and colors).

@@ -15,11 +15,17 @@ export interface ChatRequest {
 }
 
 export interface ChatResponse {
-  response: string;
+  response?: string;  // Legacy field
+  message?: string;   // New field from backend
   conversation_id: string;
-  agent_type: string;
+  agent_type?: string;
+  interaction_type?: string;
   processing_time: number;
-  timestamp: string;
+  timestamp?: string;
+  confidence?: number;
+  model_used?: string;
+  tokens_used?: number;
+  metadata?: Record<string, any>;
 }
 
 export interface ProductRecommendation {
