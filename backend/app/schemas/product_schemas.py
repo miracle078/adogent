@@ -121,9 +121,74 @@ class ProductResponse(ProductBase):
     is_in_stock: bool = Field(..., description="Whether product is in stock")
     is_low_stock: bool = Field(..., description="Whether product is low in stock")
     discount_percentage: Optional[int] = Field(None, description="Discount percentage if applicable")
+    images: List[Dict[str, Any]] = Field(default_factory=list, description="Product images")
     
     class Config:
         from_attributes = True
+    
+    @classmethod
+    def from_product(cls, product) -> "ProductResponse":
+        """
+        Safely convert a Product model to ProductResponse, handling the images relationship.
+        This prevents MissingGreenlet errors when accessing relationships in async context.
+        """
+        # Extract all the basic product attributes
+        product_data = {
+            'id': product.id,
+            'name': product.name,
+            'slug': product.slug,
+            'description': product.description,
+            'short_description': product.short_description,
+            'category_id': product.category_id,
+            'price': product.price,
+            'compare_at_price': product.compare_at_price,
+            'cost_price': product.cost_price,
+            'currency': product.currency,
+            'sku': product.sku,
+            'barcode': product.barcode,
+            'quantity': product.quantity,
+            'low_stock_threshold': product.low_stock_threshold,
+            'status': product.status,
+            'is_featured': product.is_featured,
+            'is_visible': product.is_visible,
+            'weight': product.weight,
+            'weight_unit': product.weight_unit,
+            'dimensions': product.dimensions,
+            'is_second_hand': product.is_second_hand,
+            'condition': product.condition,
+            'condition_description': product.condition_description,
+            'meta_title': product.meta_title,
+            'meta_description': product.meta_description,
+            'meta_keywords': product.meta_keywords,
+            'created_at': product.created_at,
+            'updated_at': product.updated_at,
+            'is_in_stock': product.is_in_stock,
+            'is_low_stock': product.is_low_stock,
+            'discount_percentage': product.discount_percentage,
+            'images': []
+        }
+        
+        # Safely handle images relationship
+        try:
+            if hasattr(product, 'images') and product.images is not None:
+                product_data['images'] = [
+                    {
+                        'id': str(img.id),
+                        'url': img.url,
+                        'alt_text': img.alt_text,
+                        'thumbnail_url': img.thumbnail_url,
+                        'is_primary': img.is_primary,
+                        'display_order': img.display_order,
+                        'content_type': img.content_type,
+                        'file_size': img.file_size
+                    }
+                    for img in product.images
+                ]
+        except Exception:
+            # If there's any issue accessing images, just use empty list
+            product_data['images'] = []
+        
+        return cls(**product_data)
 
 
 class ProductListResponse(BaseModel):

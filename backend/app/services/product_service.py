@@ -9,6 +9,7 @@ from datetime import datetime
 from sqlalchemy import select, and_, or_, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import Select
+from sqlalchemy.orm import selectinload
 
 from app.models.product import Product
 from app.models.product_image import ProductImage
@@ -78,7 +79,8 @@ class ProductService:
         else:
             logger.info(f"Product created: {product.id}")
         
-        return product
+        # Fetch the product with relationships loaded
+        return await self.get_product_by_id(product.id)
 
     async def get_product_by_id(self, product_id: UUID) -> Optional[Product]:
         """
@@ -90,7 +92,9 @@ class ProductService:
         Returns:
             Product if found, None otherwise
         """
-        query = select(Product).where(
+        query = select(Product).options(
+            selectinload(Product.images)
+        ).where(
             and_(
                 Product.id == product_id,
                 Product.is_deleted == False
@@ -220,8 +224,9 @@ class ProductService:
         Returns:
             SQLAlchemy select query
         """
-        # Base query - only non-deleted products
-        query = select(Product).where(Product.is_deleted == False)
+        from sqlalchemy.orm import selectinload
+        # Base query - only non-deleted products, eagerly load images
+        query = select(Product).options(selectinload(Product.images)).where(Product.is_deleted == False)
         
         # Apply filters
         if category_id:

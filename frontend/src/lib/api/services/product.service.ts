@@ -54,7 +54,9 @@ export interface ProductFilters {
 
 export interface CreateProductRequest {
   name: string;
-  description: string;
+  slug: string;
+  description?: string;
+  short_description?: string;
   price: number;
   compare_at_price?: number;
   cost_price?: number;
@@ -63,8 +65,8 @@ export interface CreateProductRequest {
   sku?: string;
   barcode?: string;
   quantity: number;
-  status?: 'active' | 'draft' | 'archived';
-  condition?: 'new' | 'used' | 'refurbished';
+  status?: 'DRAFT' | 'ACTIVE' | 'ARCHIVED' | 'OUT_OF_STOCK';
+  condition?: 'NEW' | 'LIKE_NEW' | 'EXCELLENT' | 'GOOD' | 'FAIR';
   is_featured?: boolean;
   tags?: string[];
 }

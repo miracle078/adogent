@@ -18,9 +18,126 @@ import {
   Star,
   Sparkles,
   Store,
-  Shield
-} from 'lucide-react'; 
-import { productService, type Product } from '@/lib/api';
+  Shield,
+  Trash2,
+  MessageCircle,
+  Bot,
+  X,
+  Check,
+  Loader2,
+  ChevronUp,
+  ChevronDown
+} from 'lucide-react';
+
+// Import statements for better type handling
+interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+} 
+import { productService, aiService, type Product } from '@/lib/api';
+
+// Component for structured AI messages
+const AssistantMessage = ({ content }: { content: string }) => {
+  const [expanded, setExpanded] = useState(false);
+  
+  // Handle undefined or null content
+  if (!content) {
+    return <div className="p-3 text-sm text-gray-500">No response</div>;
+  }
+  
+  const maxLength = 200;
+  const needsTruncation = content.length > maxLength;
+  
+  const displayContent = needsTruncation && !expanded 
+    ? content.substring(0, maxLength) + '...'
+    : content;
+
+  // Parse content for better structure
+  const formatContent = (text: string) => {
+    // Handle empty text
+    if (!text || !text.trim()) {
+      return <p className="text-sm text-gray-500">Empty response</p>;
+    }
+    
+    // Split by newlines for paragraphs
+    const paragraphs = text.split('\n').filter(p => p.trim());
+    
+    return (
+      <div className="space-y-2">
+        {paragraphs.map((para, idx) => {
+          // Check if it's a list item
+          if (para.trim().startsWith('•') || para.trim().startsWith('-') || para.trim().match(/^\d+\./)) {
+            return (
+              <div key={idx} className="flex gap-2">
+                <span className="text-blue-500 mt-0.5">•</span>
+                <span className="text-sm text-gray-700">{para.replace(/^[•\-\d+\.]\s*/, '')}</span>
+              </div>
+            );
+          }
+          // Regular paragraph
+          return (
+            <p key={idx} className="text-sm text-gray-700 leading-relaxed">
+              {para}
+            </p>
+          );
+        })}
+      </div>
+    );
+  };
+
+  return (
+    <div className="p-3">
+      {formatContent(displayContent)}
+      {needsTruncation && (
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="text-xs text-blue-500 hover:text-blue-600 mt-2 flex items-center gap-1"
+        >
+          {expanded ? (
+            <>
+              Show less
+              <ChevronUp className="w-3 h-3" />
+            </>
+          ) : (
+            <>
+              Show more
+              <ChevronDown className="w-3 h-3" />
+            </>
+          )}
+        </button>
+      )}
+    </div>
+  );
+};
+
+// Quick action buttons for chat
+const QuickActions = ({ onSelect }: { onSelect: (text: string) => void | Promise<void> }) => {
+  const actions = [
+    'Tell me about this product',
+    'Is this available?',
+    'What are similar products?',
+    'Can you recommend alternatives?'
+  ];
+
+  return (
+    <div className="flex flex-wrap gap-2 p-3 border-t border-gray-100">
+      {actions.map((action, idx) => (
+        <button
+          key={idx}
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onSelect(action);
+          }}
+          className="text-xs px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-full transition-colors"
+        >
+          {action}
+        </button>
+      ))}
+    </div>
+  );
+};
 
 const Marketplace = () => {
   const [selectedCategory, setSelectedCategory] = useState('');
@@ -33,6 +150,13 @@ const Marketplace = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [selectedProductForChat, setSelectedProductForChat] = useState<Product | null>(null);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatInput, setChatInput] = useState('');
+  const [chatLoading, setChatLoading] = useState(false);
+  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   const categories = [
     { name: "Sneakers & Shoes", value: "shoes", icon: "👟", color: "from-blue-400 to-indigo-400" },
@@ -249,6 +373,89 @@ const Marketplace = () => {
   const handleAddToFavorites = (product: Product) => {
     setFavoriteCount(prev => prev + 1);
     toast.success(`${product.name} added to favorites!`);
+  };
+
+  const handleDeleteProduct = async (productId: string) => {
+    try {
+      await productService.deleteProduct(productId);
+      toast.success('Product deleted successfully');
+      setDeleteConfirmId(null);
+      fetchProducts(); // Refresh the product list
+    } catch (error) {
+      toast.error('Failed to delete product');
+      console.error('Delete error:', error);
+      setDeleteConfirmId(null);
+    }
+  };
+
+  const handleChatWithProduct = (product: Product) => {
+    setSelectedProductForChat(product);
+    setChatOpen(true);
+    // Add initial message about the product
+    setChatMessages([
+      { 
+        role: 'assistant', 
+        content: `Hi! I can help you with information about "${product.name}". What would you like to know?` 
+      }
+    ]);
+  };
+
+  const sendChatMessage = async () => {
+    if (!chatInput.trim() || chatLoading) return;
+    
+    const userMessage = chatInput;
+    setChatInput('');
+    setChatMessages(prev => [...prev, { role: 'user', content: userMessage }]);
+    setChatLoading(true);
+    
+    try {
+      // Prepare context with product information if available
+      const context: any = {};
+      if (selectedProductForChat) {
+        context.product = {
+          id: selectedProductForChat.id,
+          name: selectedProductForChat.name,
+          price: selectedProductForChat.price,
+          description: selectedProductForChat.description,
+          category_id: selectedProductForChat.category_id,
+          brand: selectedProductForChat.brand,
+          condition: selectedProductForChat.condition,
+          is_featured: selectedProductForChat.is_featured
+        };
+        context.interaction_type = 'product_details';
+      }
+      
+      // Call the actual AI service
+      const response = await aiService.sendMessage({
+        message: userMessage,
+        conversation_id: conversationId || undefined,
+        context: Object.keys(context).length > 0 ? context : undefined,
+        interaction_type: context.interaction_type || 'general_chat'
+      } as any);
+      
+      // Update conversation ID if this is the first message
+      if (!conversationId && response.conversation_id) {
+        setConversationId(response.conversation_id);
+      }
+      
+      // Add AI response to messages
+      console.log('AI Response:', response); // Debug log
+      const aiContent = response?.response || response?.message || response?.content || 'No response received';
+      setChatMessages(prev => [...prev, { 
+        role: 'assistant', 
+        content: aiContent
+      }]);
+      
+    } catch (error: any) {
+      console.error('Chat error:', error);
+      toast.error('Failed to send message');
+      setChatMessages(prev => [...prev, { 
+        role: 'assistant', 
+        content: 'Sorry, I encountered an error. Please try again.' 
+      }]);
+    } finally {
+      setChatLoading(false);
+    }
   };
 
   const clearFilters = () => {
@@ -555,7 +762,7 @@ const Marketplace = () => {
                               </Badge>
                             )}
                             <Badge variant="outline" className="text-xs">
-                              {categories.find(c => c.value === product.category_id)?.icon || '📦'}
+                              {categories.find(c => c.value === product.category_id)?.name || 'General'}
                             </Badge>
                           </div>
 
@@ -602,17 +809,59 @@ const Marketplace = () => {
                           {/* Action Buttons */}
                           <div className="flex gap-2">
                             <Link to={`/product/${product.id}`} className="flex-1">
-                              <Button className="w-full bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white">
-                                View Details
+                              <Button className="w-full bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white" size="sm">
+                                View
                               </Button>
                             </Link>
                             <Button 
                               size="icon"
                               variant="outline"
+                              onClick={() => handleChatWithProduct(product)}
+                              className="hover:bg-purple-50 hover:text-purple-600"
+                              title="Chat about this product"
+                            >
+                              <MessageCircle className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              size="icon"
+                              variant="outline"
                               onClick={() => handleAddToFavorites(product)}
+                              className="hover:bg-red-50 hover:text-red-600"
                             >
                               <Heart className="h-4 w-4" />
                             </Button>
+                            {deleteConfirmId === product.id ? (
+                              <div className="flex gap-1">
+                                <Button 
+                                  size="icon"
+                                  variant="ghost"
+                                  onClick={() => handleDeleteProduct(product.id)}
+                                  className="bg-red-50 text-red-600 hover:bg-red-100 h-8 w-8"
+                                  title="Confirm delete"
+                                >
+                                  <Check className="h-3 w-3" />
+                                </Button>
+                                <Button 
+                                  size="icon"
+                                  variant="ghost"
+                                  onClick={() => setDeleteConfirmId(null)}
+                                  className="hover:bg-gray-100 h-8 w-8"
+                                  title="Cancel"
+                                >
+                                  <X className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            ) : (
+                              <Button 
+                                size="icon"
+                                variant="outline"
+                                onClick={() => setDeleteConfirmId(product.id)}
+                                className="hover:bg-red-50 hover:text-red-600"
+                                title="Delete product"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
                           </div>
                         </CardContent>
                       </div>
@@ -656,6 +905,201 @@ const Marketplace = () => {
           </div>
         </div>
       </div>
+
+      {/* Floating AI Chat Button */}
+      <motion.button
+        type="button"
+        initial={{ scale: 0 }}
+        animate={{ scale: 1 }}
+        whileHover={{ scale: 1.1 }}
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setChatOpen(!chatOpen);
+        }}
+        className="fixed bottom-6 right-6 z-50 bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-full p-4 shadow-lg hover:shadow-xl transition-all"
+      >
+        <Bot className="h-6 w-6" />
+      </motion.button>
+
+      {/* AI Chat Popup */}
+      {chatOpen && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="fixed bottom-24 right-6 z-50 w-96 max-w-[calc(100vw-3rem)] bg-white rounded-2xl shadow-2xl overflow-hidden"
+        >
+          {/* Chat Header */}
+          <div className="bg-gradient-to-r from-purple-500 to-indigo-500 text-white p-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Bot className="h-6 w-6" />
+              <div>
+                <h3 className="font-semibold">AI Shopping Assistant</h3>
+                {selectedProductForChat && (
+                  <p className="text-xs opacity-90">Discussing: {selectedProductForChat.name}</p>
+                )}
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                setChatOpen(false);
+                setSelectedProductForChat(null);
+                setChatMessages([]);
+              }}
+              className="hover:bg-white/20 rounded-full p-1"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+
+          {/* Chat Messages */}
+          <div className="h-96 overflow-y-auto p-4 space-y-4 bg-gray-50">
+            {chatMessages.length === 0 ? (
+              <div className="text-center text-gray-500 py-8">
+                <Bot className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                <p>Hi! I'm your AI shopping assistant.</p>
+                <p className="text-sm mt-2">Ask me anything about our products!</p>
+              </div>
+            ) : (
+              <>
+                {chatMessages.map((msg, idx) => (
+                  <motion.div
+                    key={idx}
+                    initial={{ opacity: 0, x: msg.role === 'user' ? 20 : -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                  >
+                    <div className={`max-w-[80%] rounded-xl ${
+                      msg.role === 'user' 
+                        ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white p-3' 
+                        : 'bg-white shadow-md'
+                    }`}>
+                      {msg.role === 'assistant' ? (
+                        <AssistantMessage content={msg.content} />
+                      ) : (
+                        <p className="text-sm">{msg.content}</p>
+                      )}
+                    </div>
+                  </motion.div>
+                ))}
+                {chatLoading && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="flex justify-start"
+                  >
+                    <div className="bg-white text-gray-800 shadow-md p-3 rounded-xl">
+                      <div className="flex space-x-2">
+                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </>
+            )}
+          </div>
+
+          {/* Selected Product Display */}
+          {selectedProductForChat && (
+            <div className="p-3 bg-white border-t flex items-center gap-3">
+              <div className="w-16 h-16 bg-gray-100 rounded-lg overflow-hidden">
+                {selectedProductForChat.images && selectedProductForChat.images[0] ? (
+                  <img 
+                    src={selectedProductForChat.images[0].url} 
+                    alt={selectedProductForChat.name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <ShoppingBag className="h-6 w-6 text-gray-400" />
+                  </div>
+                )}
+              </div>
+              <div className="flex-1">
+                <p className="font-semibold text-sm">{selectedProductForChat.name}</p>
+                <p className="text-lg font-bold text-blue-600">${selectedProductForChat.price}</p>
+              </div>
+              <button
+                onClick={() => setSelectedProductForChat(null)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          )}
+
+          {/* Quick Actions */}
+          {chatMessages.length === 0 && !selectedProductForChat && (
+            <QuickActions onSelect={async (text) => {
+              // Set the input and send directly
+              setChatInput(text);
+              
+              // Send the message directly
+              const userMessage = text;
+              setChatMessages(prev => [...prev, { role: 'user', content: userMessage }]);
+              setChatLoading(true);
+              
+              try {
+                const response = await aiService.sendMessage({
+                  message: userMessage,
+                  conversation_id: conversationId || undefined
+                });
+                
+                if (!conversationId && response.conversation_id) {
+                  setConversationId(response.conversation_id);
+                }
+                
+                setChatMessages(prev => [...prev, { 
+                  role: 'assistant', 
+                  content: response.response
+                }]);
+              } catch (error) {
+                console.error('Chat error:', error);
+                setChatMessages(prev => [...prev, { 
+                  role: 'assistant', 
+                  content: 'Sorry, I encountered an error. Please try again.' 
+                }]);
+              } finally {
+                setChatLoading(false);
+                setChatInput('');
+              }
+            }} />
+          )}
+
+          {/* Chat Input */}
+          <div className="p-4 bg-white border-t">
+            <form onSubmit={(e) => { 
+              e.preventDefault(); 
+              e.stopPropagation();
+              sendChatMessage(); 
+              return false;
+            }} className="flex gap-2">
+              <Input
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                placeholder="Type your message..."
+                className="flex-1"
+              />
+              <Button 
+                type="submit"
+                disabled={chatLoading || !chatInput.trim()}
+                className="bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white disabled:opacity-50"
+              >
+                {chatLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  'Send'
+                )}
+              </Button>
+            </form>
+          </div>
+        </motion.div>
+      )}
     </div>
   );
 };

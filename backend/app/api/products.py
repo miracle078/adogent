@@ -69,7 +69,7 @@ async def create_product(
                     logger.error(f"Failed to upload image for product {product.id}: {str(img_error)}")
         
         await db.refresh(product)
-        return product
+        return ProductResponse.from_product(product)
         
     except json.JSONDecodeError:
         raise HTTPException(
@@ -106,7 +106,7 @@ async def get_product(
                 detail="Product not found"
             )
         
-        return product
+        return ProductResponse.from_product(product)
         
     except HTTPException as e:
         raise e
@@ -180,7 +180,7 @@ async def update_product(
                     logger.error(f"Failed to upload image for product {product_id}: {str(img_error)}")
         
         await db.refresh(product)
-        return product
+        return ProductResponse.from_product(product)
         
     except json.JSONDecodeError:
         raise HTTPException(
@@ -268,10 +268,15 @@ async def list_products(
         pagination_params = PaginationParams(page=page, size=size)
         result = await paginate_query(db, query, pagination_params)
         
+        # Convert products to response format with images
+        products_with_images = [
+            ProductResponse.from_product(product) for product in result.items
+        ]
+        
         # IMPORTANT: Always return 200 with empty array when no products found
         # This is correct REST API behavior for collection endpoints
         response = ProductListResponse(
-            products=result.items,
+            products=products_with_images,
             total=result.total,
             page=result.page,
             size=result.size,

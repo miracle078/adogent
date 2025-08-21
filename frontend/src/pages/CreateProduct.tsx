@@ -41,10 +41,10 @@ const CreateProduct = () => {
     compare_at_price: '',
     sku: '',
     quantity: '1',
-    status: 'draft',
+    status: 'DRAFT',
     is_featured: false,
     is_second_hand: false,
-    condition: 'new'
+    condition: 'NEW'
   });
 
   // Fetch categories from backend
@@ -83,9 +83,11 @@ const CreateProduct = () => {
   }, []);
 
   const conditions = [
-    { value: 'new', label: 'Brand New' },
-    { value: 'used', label: 'Used' },
-    { value: 'refurbished', label: 'Refurbished' }
+    { value: 'NEW', label: 'Brand New' },
+    { value: 'LIKE_NEW', label: 'Like New' },
+    { value: 'EXCELLENT', label: 'Excellent' },
+    { value: 'GOOD', label: 'Good' },
+    { value: 'FAIR', label: 'Fair' }
   ];
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -112,14 +114,23 @@ const CreateProduct = () => {
     setImagePreviews(imagePreviews.filter((_, i) => i !== index));
   };
 
+  // Generate slug from name
+  const generateSlug = (name: string) => {
+    return name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      // Prepare product data
+      // Prepare product data with required slug field
       const productData = {
         name: formData.name,
+        slug: formData.slug || generateSlug(formData.name),
         description: formData.description || '',
         short_description: formData.short_description || '',
         price: parseFloat(formData.price),
@@ -127,8 +138,8 @@ const CreateProduct = () => {
         quantity: parseInt(formData.quantity),
         category_id: formData.category_id || undefined,
         sku: formData.sku || undefined,
-        status: formData.status as 'active' | 'draft' | 'archived',
-        condition: formData.condition as 'new' | 'used' | 'refurbished',
+        status: formData.status as 'DRAFT' | 'ACTIVE' | 'ARCHIVED' | 'OUT_OF_STOCK',
+        condition: formData.condition as 'NEW' | 'LIKE_NEW' | 'EXCELLENT' | 'GOOD' | 'FAIR',
         is_featured: formData.is_featured,
         brand: formData.brand || undefined,
         tags: [] // Add tags if needed
@@ -376,9 +387,10 @@ const CreateProduct = () => {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="draft">Draft</SelectItem>
-                          <SelectItem value="active">Active</SelectItem>
-                          <SelectItem value="archived">Archived</SelectItem>
+                          <SelectItem value="DRAFT">Draft</SelectItem>
+                          <SelectItem value="ACTIVE">Active</SelectItem>
+                          <SelectItem value="ARCHIVED">Archived</SelectItem>
+                          <SelectItem value="OUT_OF_STOCK">Out of Stock</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
